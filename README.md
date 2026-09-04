@@ -22,3 +22,7 @@ RPG-игра с боевой системой, крафтом, торговле�
 1. Установи Python 3.14 и Pygame:
    ```bash
    pip install pygame pyvidplayer2
+## 📬 Контакты
+
+- GitHub: [Odesh-Gran](https://github.com/Odesh-Gran)
+- Email: assasin2325@mail.ru
