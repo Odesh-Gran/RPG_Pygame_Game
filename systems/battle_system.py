@@ -494,6 +494,20 @@ class BattleSystem:
             except Exception as e:
                 print(f"   ⚠️ Ошибка обновления квестов: {e}")
 
+        print(f"🔍 self.game.api: {self.game.api}")
+        print(f"🔍 self.game.api.token: {self.game.api.token}")
+        # ===== ДОСТИЖЕНИЯ ЗА УБИЙСТВО ВРАГА =====
+        if self.game and hasattr(self.game, 'api') and self.game.api:
+            enemy_name = self.current_enemy
+            achievement_data = self._get_achievement_for_enemy(enemy_name)
+            if achievement_data:
+                self.game.api.save_achievement(
+                    name=achievement_data["name"],
+                    description=achievement_data["description"]
+                )
+                if hasattr(self.game, 'add_to_log'):
+                    self.game.add_to_log(f"🏆 Получено достижение: {achievement_data['name']}")
+
         # ===== ПОЛУЧАЕМ НАГРАДУ =====
         награда = self.enemy_data.get("награда", ("хлеб", 5))
 
@@ -576,3 +590,53 @@ class BattleSystem:
         self.player["пояс"] = пояс
 
         return True, f"Использовано {item}! +{лечение} здоровья!"
+
+    def _get_achievement_for_enemy(self, enemy_name):
+        """Возвращает достижение для врага, если оно есть"""
+        achievements = {
+            "таракан": {
+                "name": "Король леса пал",
+                "description": "Игрок победил лесного короля"
+            },
+            "лесная_ведьма": {
+                "name": "Победитель ведьм",
+                "description": "Игрок одолел лесную ведьму"
+            },
+            "повар_призрак": {
+                "name": "Призрак побеждён",
+                "description": "Игрок одолел призрака-повара"
+            },
+            "болотник": {
+                "name": "Болотный страж",
+                "description": "Игрок победил болотника"
+            },
+            "рыцарь_призрак": {
+                "name": "Призрачный рыцарь",
+                "description": "Игрок одолел рыцаря-призрака"
+            },
+            "древний_энт": {
+                "name": "Древний страж",
+                "description": "Игрок победил древнего энта"
+            },
+            "лесной_тролль": {
+                "name": "Охотник на троллей",
+                "description": "Игрок уничтожил лесного тролля"
+            },
+            "вурдалак": {
+                "name": "Охотник на вампиров",
+                "description": "Игрок победил вурдалака"
+            },
+            "лесная_ведьма": {
+                "name": "Победитель ведьм",
+                "description": "Игрок одолел лесную ведьму"
+            },
+            "ржавый_голем": {
+                "name": "Разрушитель големов",
+                "description": "Игрок уничтожил ржавого голема"
+            },
+            "королевский_страж": {
+                "name": "Стражник королевства",
+                "description": "Игрок победил королевского стража"
+            },
+        }
+        return achievements.get(enemy_name, None)

@@ -18,6 +18,9 @@ from systems.inventory_system import InventorySystem
 import игрок
 from игрок import потратить_ресурсы, проверить_голод
 from systems.quest_system import QuestSystem
+from login_screen import LoginScreen
+import game_api
+from game_api import GameAPI
 
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 # ===== ИМПОРТ НАСТРОЕК =====
@@ -40,9 +43,10 @@ font_emoji = pygame.font.Font(EMOJI_FONT_PATH, 28)
 
 
 class Game:
-    def __init__(self):
+    def __init__(self,api=None):
         """Инициализация игры"""
-
+        self.api = api
+        self.token = self.api.token if self.api else None  # берём токен из api
         # ========== НАСТРОЙКИ ЭКРАНА ==========
         self.WIDTH = 1920
         self.HEIGHT = 1080
@@ -7618,7 +7622,22 @@ class Game:
             self.screen.blit(more_text, (panel_x + 12, y + 4))
 
 
-
 if __name__ == "__main__":
-    game = Game()
-    game.run()
+    from game_api import GameAPI  # Добавляем импорт
+
+    # Создаём экземпляр API
+    api = GameAPI()
+
+    # Показываем окно входа (передаём API)
+    login = LoginScreen(api=api)
+    token = login.run()
+
+    if token:
+        print("✅ Вход выполнен! Запуск игры...")
+        # Токен уже сохранён в api через LoginScreen
+        game = Game(api=api)  # Передаём API в игру
+        game.run()
+    else:
+        print("❌ Вход не выполнен. Выход.")
+        pygame.quit()
+        sys.exit()
