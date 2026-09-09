@@ -4,7 +4,7 @@ import json
 import os
 
 class GameAPI:
-    def __init__(self, base_url="http://localhost:8000/api/v1"):
+    def __init__(self, base_url="http://194.226.122.252:8000/api/v1"):
         self.base_url = base_url
         self.token = None
         self.token_file = "token.json"
