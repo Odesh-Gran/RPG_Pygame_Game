@@ -11,8 +11,8 @@ from systems.video_manager import VideoManager
 
 # ===== МУЗЫКА =====
 from systems.audio import MusicManager
-# ===== ЛОКАЛЬНЫЕ НАСТРОЙКИ =====
-
+# ===== КВЕСТЫ =====
+from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
 from entities.player import потратить_ресурсы, проверить_голод
@@ -68,6 +68,12 @@ class Game:
         pygame.display.set_caption("Убежище в замке")
 
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+        # ========== ШРИФТЫ (прокидываем внутрь класса) ==========
+        self.font_tiny = font_tiny
+        self.font_small = font_small
+        self.font_medium = font_medium
+        self.font_large = font_large
 
         # ========== ОСНОВНЫЕ ПАРАМЕТРЫ ИГРЫ ==========
         from entities.player import создать_нового_игрока
@@ -2892,7 +2898,7 @@ class Game:
                 if hasattr(self, 'quest_system') and hasattr(self, 'игрок'):
                     if "ежедневные_квесты" in self.игрок:
                         # Проверяем тип предмета
-                        import предметы
+                        from entities import items as предметы
                         данные = предметы.предметы.get(предмет, {})
                         тип_предмета = данные.get("тип", "")
 
@@ -3517,8 +3523,8 @@ class Game:
                 self.draw_log_panel()
                 self.draw_battle_start_animation()
                 self.draw_loot_panel()
-                self.draw_quest_tracker()
-                self.draw_daily_quest_tracker()
+                draw_quest_tracker(self)
+                draw_daily_quest_tracker(self)
                 self.draw_обыск_шкала()
 
             elif self.режим == "инвентарь":
@@ -6874,7 +6880,7 @@ class Game:
         pygame.event.clear()
 
         # ===== МУЗЫКА БОЯ =====
-        self.переключить_плейлист("бой")
+        self.music.переключить_плейлист("бой", self.игра_загружена)
 
         # ===== СБРОС ПАРАМЕТРОВ =====
         self.enemy_bleed_duration = 0
@@ -7160,269 +7166,6 @@ class Game:
         print(f"   Шанс контратаки: {self.игрок.get('counter_chance', 0)}%")
         print(f"   Возрождение: {self.игрок.get('revive_hp', 0)}%")
         print("=" * 50)
-
-    def draw_quest_tracker(self):
-        """Отображает активные квесты на экране"""
-        if not self.показывать_квесты:
-            return
-
-        if self.режим == "бой":
-            return
-
-        активные_квесты = self.игрок.get("активные_квесты", [])
-        if not активные_квесты:
-            return
-
-        # ===== ПАРАМЕТРЫ =====
-        panel_width = 320
-        panel_height = 30 + len(активные_квесты) * 75  # 👈 больше места
-        panel_x = self.квесты_позиция_x
-        panel_y = self.квесты_позиция_y
-
-        if panel_height > 400:
-            panel_height = 400
-
-        # ===== ФОН =====
-        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-
-        for i in range(panel_height):
-            ratio = i / panel_height
-            r = int(10 + 15 * ratio)
-            g = int(10 + 10 * ratio)
-            b = int(20 + 20 * ratio)
-            color = (r, g, b, 200)
-            pygame.draw.line(panel_surface, color, (0, i), (panel_width, i))
-
-        pygame.draw.rect(panel_surface, GOLD, panel_surface.get_rect(), 1)
-        self.screen.blit(panel_surface, (panel_x, panel_y))
-
-        # ===== ЗАГОЛОВОК =====
-        title = font_medium.render("КВЕСТЫ", True, GOLD)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 6))
-
-        # Разделитель
-        pygame.draw.line(self.screen, GOLD,
-                         (panel_x + 10, panel_y + 28),
-                         (panel_x + panel_width - 10, panel_y + 28), 1)
-
-        # ===== КВЕСТЫ =====
-        y = panel_y + 34
-        max_quests = min(len(активные_квесты), 5)  # 👈 5 квестов вместо 6 (больше места)
-
-        for i, квест_id in enumerate(активные_квесты[:max_quests]):
-            квест = self.quest_system.получить_квест(квест_id)
-            if not квест:
-                continue
-
-            # ===== НАЗВАНИЕ =====
-            name = квест.get("название", "???")
-            name_text = font_small.render(name, True, (255, 215, 0))
-            self.screen.blit(name_text, (panel_x + 12, y))
-            y += 18
-
-            # ===== ОПИСАНИЕ (НОВОЕ!) =====
-            description = квест.get("описание", "")
-            # Разбиваем описание на строки
-            desc_lines = self._разбить_текст_на_строки(description, panel_width - 30, font_small)
-            desc_lines = desc_lines[:2]  # максимум 2 строки
-
-            for line in desc_lines:
-                desc_text = font_small.render(line, True, (180, 180, 180))
-                self.screen.blit(desc_text, (panel_x + 14, y))
-                y += 16
-
-            # ===== ПРОГРЕСС =====
-            прогресс_строки = self.quest_system.получить_прогресс_строку(квест_id)
-            прогресс_строки = self.quest_system.получить_прогресс_строку(квест_id, self.игрок)
-            if прогресс_строки:
-                prog_text = font_small.render(прогресс_строки[0][:35], True, (200, 200, 200))
-                self.screen.blit(prog_text, (panel_x + 14, y))
-                y += 16
-            else:
-                status_text = font_small.render("В процессе...", True, (150, 150, 150))
-                self.screen.blit(status_text, (panel_x + 14, y))
-                y += 16
-
-            # Разделитель
-            if i < len(активные_квесты[:max_quests]) - 1:
-                pygame.draw.line(self.screen, (80, 80, 100),
-                                 (panel_x + 12, y),
-                                 (panel_x + panel_width - 12, y), 1)
-                y += 6
-
-        # Если квестов больше 5
-        if len(активные_квесты) > 5:
-            more_text = font_small.render(f"... и ещё {len(активные_квесты) - 5}", True, GRAY)
-            self.screen.blit(more_text, (panel_x + 12, y + 4))
-
-    def draw_daily_quest_tracker(self):
-        """Отображает ежедневные квесты на экране (отдельная панель)"""
-
-
-        # Проверяем, есть ли ежедневные квесты
-        if not hasattr(self, 'quest_system'):
-            print("   ❌ Нет quest_system!")
-            return
-
-        if not hasattr(self.quest_system, 'ежедневные_квесты'):
-            print("   ❌ Нет ежедневные_квесты в quest_system!")
-            return
-
-        # Проверяем, что у игрока есть поля для ежедневных квестов
-        if "ежедневные_квесты" not in self.игрок:
-            print("   ⚠️ Нет ежедневные_квесты в игроке! Создаём...")
-            self.игрок["ежедневные_квесты"] = []
-            self.игрок["ежедневные_квесты_прогресс"] = {}
-            self.игрок["ежедневные_квесты_дата"] = ""
-
-        # Если у игрока нет квестов - загружаем
-        if not self.игрок["ежедневные_квесты"]:
-            print("   ⚠️ Нет активных квестов! Загружаем...")
-            self.quest_system.загрузить_ежедневные_квесты(self.игрок)
-
-        активные = self.игрок.get("ежедневные_квесты", [])
-
-        # Проверяем, какие из них ещё не завершены
-        активные_незавершенные = []
-        for квест_ид in активные:
-            if not self.quest_system.проверить_ежедневный_квест(квест_ид, self.игрок):
-                # Находим данные квеста
-                for квест in self.quest_system.ежедневные_квесты:
-                    if квест.get("id") == квест_ид:
-                        активные_незавершенные.append(квест)
-                        break
-
-        if not активные_незавершенные:
-            print("   ❌ Нет активных ежедневных квестов!")
-            return
-
-        # ===== ПАРАМЕТРЫ ПАНЕЛИ =====
-        panel_width = 280
-        panel_height = 30 + len(активные_незавершенные) * 80
-        panel_x = WIDTH - panel_width - 20
-        panel_y = 200
-
-        if panel_height > 380:
-            panel_height = 380
-
-        # ===== ФОН ПАНЕЛИ =====
-        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-
-        for i in range(panel_height):
-            ratio = i / panel_height
-            r = int(10 + 15 * ratio)
-            g = int(30 + 20 * ratio)
-            b = int(10 + 10 * ratio)
-            color = (r, g, b, 200)
-            pygame.draw.line(panel_surface, color, (0, i), (panel_width, i))
-
-        pygame.draw.rect(panel_surface, HEALTH_GREEN, panel_surface.get_rect(), 2)
-
-        corner_size = 8
-        corners = [(2, 2), (panel_width - corner_size - 2, 2),
-                   (2, panel_height - corner_size - 2), (panel_width - corner_size - 2, panel_height - corner_size - 2)]
-        for cx, cy in corners:
-            pygame.draw.rect(panel_surface, HEALTH_GREEN, (cx, cy, corner_size, corner_size), 2)
-
-        self.screen.blit(panel_surface, (panel_x, panel_y))
-
-        # ===== ЗАГОЛОВОК =====
-        title = font_medium.render("ЕЖЕДНЕВНЫЕ", True, HEALTH_GREEN)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 6))
-
-        pygame.draw.line(self.screen, HEALTH_GREEN,
-                         (panel_x + 10, panel_y + 30),
-                         (panel_x + panel_width - 10, panel_y + 30), 1)
-
-        # ===== ОТОБРАЖАЕМ КВЕСТЫ =====
-        y = panel_y + 36
-        max_quests = min(len(активные_незавершенные), 4)
-
-        for i in range(max_quests):
-            квест = активные_незавершенные[i]
-            квест_ид = квест.get("id")
-
-            if not квест_ид:
-                continue
-
-            # Название
-            name = квест.get("название", "???")
-            name_text = font_small.render(name, True, HEALTH_GREEN)
-            self.screen.blit(name_text, (panel_x + 12, y))
-            y += 18
-
-            # 👇 ИСПРАВЛЕНО: берём прогресс ИЗ ИГРОКА
-            прогресс = self.игрок.get("ежедневные_квесты_прогресс", {}).get(квест_ид, {})
-            текущее = прогресс.get("текущее", 0)  # 👈 ВАЖНО!
-            цель = квест.get("цели", {}).get("количество", 1)
-
-            тип = квест.get("тип", "убить")
-            if тип == "убить":
-                прог_текст = f"Убито: {текущее}/{цель}"
-            elif тип == "найти":
-                прог_текст = f"Найдено: {текущее}/{цель}"
-            elif тип == "посетить":
-                прог_текст = f"Посещено: {текущее}/{цель}"
-            elif тип == "крафт":
-                прог_текст = f"Создано: {текущее}/{цель}"
-            elif тип == "монеты":
-                прог_текст = f"Монет: {текущее}/{цель}"
-            else:
-                прог_текст = f"Прогресс: {текущее}/{цель}"
-
-            prog_text = font_small.render(прог_текст, True, (200, 200, 200))
-            self.screen.blit(prog_text, (panel_x + 14, y))
-            y += 16
-
-            # Полоса прогресса
-            bar_width = panel_width - 30
-            bar_height = 6
-            bar_x = panel_x + 14
-            bar_y = y
-
-            pygame.draw.rect(self.screen, (40, 40, 40), (bar_x, bar_y, bar_width, bar_height))
-
-            if цель > 0:
-                fill_width = int(bar_width * (текущее / цель))
-                fill_width = min(fill_width, bar_width)
-                if fill_width > 0:
-                    for j in range(fill_width):
-                        ratio = j / bar_width
-                        r = int(200 + 55 * ratio)
-                        g = int(200 - 55 * ratio)
-                        color = (r, g, 0)
-                        pygame.draw.line(self.screen, color,
-                                         (bar_x + j, bar_y + 1),
-                                         (bar_x + j, bar_y + bar_height - 1))
-
-            pygame.draw.rect(self.screen, HEALTH_GREEN, (bar_x, bar_y, bar_width, bar_height), 1)
-            y += 14
-
-            # Награда
-            награда = квест.get("награда", {})
-            награда_текст = []
-            if награда.get("опыт"):
-                награда_текст.append(f"+{награда['опыт']} опыта")
-            if награда.get("монеты"):
-                награда_текст.append(f"{награда['монеты']} монет")
-
-            if награда_текст:
-                reward_text = font_tiny.render(" " + " ".join(награда_текст), True, GOLD)
-                self.screen.blit(reward_text, (panel_x + 14, y))
-                y += 16
-
-            if i < max_quests - 1:
-                pygame.draw.line(self.screen, (40, 60, 40),
-                                 (panel_x + 12, y),
-                                 (panel_x + panel_width - 12, y), 1)
-                y += 4
-
-        if len(активные_незавершенные) > 4:
-            more_text = font_tiny.render(f"... и ещё {len(активные_незавершенные) - 4}", True, GRAY)
-            self.screen.blit(more_text, (panel_x + 12, y + 4))
-
 
 if __name__ == "__main__":
     from game_api import GameAPI  # Добавляем импорт
