@@ -4,6 +4,7 @@ import math
 import random
 import sys
 
+from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
@@ -68,6 +69,8 @@ class Game:
         pygame.display.set_caption("Убежище в замке")
 
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+        self.clock = pygame.time.Clock()
 
         # ========== ШРИФТЫ (прокидываем внутрь класса) ==========
         self.font_tiny = font_tiny
@@ -2125,7 +2128,7 @@ class Game:
                     self.режим = "инвентарь"
 
                 elif action == "к":
-                    self.show_save_menu()
+                    show_save_menu(self)
 
                 elif action == "у":
                     self.режим = "карта"
@@ -2306,7 +2309,7 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         if save_rect.collidepoint(event.pos):
-                            self.show_save_menu_for_exit()
+                            show_save_menu_for_exit(self)
                             return True
                         elif exit_rect.collidepoint(event.pos):
                             return True
@@ -2320,381 +2323,6 @@ class Game:
             clock.tick(FPS)
 
         return False
-
-    def show_save_menu_for_exit(self):
-        """Меню выбора слота для сохранения перед выходом"""
-
-        saves_info = сохранение.list_saves()
-
-        # Параметры прокрутки
-        scroll_offset = 0
-        visible_slots = 4
-        total_slots = 5
-
-        waiting = True
-        selected_slot = None
-
-        while waiting:
-            # Затемнение фона
-            s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            s.fill((0, 0, 0, 200))
-            self.screen.blit(s, (0, 0))
-
-            # Заголовок
-            title = font_large.render("СОХРАНЕНИЕ", True, GOLD)
-            title_x = WIDTH // 2 - title.get_width() // 2
-            self.screen.blit(title, (title_x, 60))
-
-            subtitle = font_medium.render("Выберите слот для сохранения:", True, WHITE)
-            sub_x = WIDTH // 2 - subtitle.get_width() // 2
-            self.screen.blit(subtitle, (sub_x, 120))
-
-            # Слоты
-            slot_buttons = []
-            slot_width = 500
-            slot_height = 110
-            spacing = 15
-            start_x = WIDTH // 2 - slot_width // 2
-            start_y = 170
-
-            max_scroll = max(0, total_slots - visible_slots)
-            scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            start_slot = scroll_offset
-            end_slot = min(start_slot + visible_slots, total_slots)
-
-            for i in range(start_slot, end_slot):
-                slot = i + 1
-                y = start_y + (i - start_slot) * (slot_height + spacing)
-
-                slot_rect = pygame.Rect(start_x, y, slot_width, slot_height)
-
-                save_info = None
-                for info in saves_info:
-                    if info["slot"] == slot:
-                        save_info = info
-                        break
-
-                if save_info:
-                    pygame.draw.rect(self.screen, DARK_BLUE, slot_rect)
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GOLD)
-                    self.screen.blit(slot_text, (start_x + 20, y + 12))
-
-                    line1 = f"{save_info['class']} | Уровень {save_info['level']}"
-                    line1_text = font_small.render(line1, True, WHITE)
-                    line1_x = start_x + slot_width // 2 - line1_text.get_width() // 2
-                    self.screen.blit(line1_text, (line1_x, y + 28))
-
-                    line2 = f"{save_info['time']} | День {save_info['day']}"
-                    line2_text = font_small.render(line2, True, WHITE)
-                    line2_x = start_x + slot_width // 2 - line2_text.get_width() // 2
-                    self.screen.blit(line2_text, (line2_x, y + 53))
-
-                    line3 = f"{save_info['location']}"
-                    line3_text = font_small.render(line3, True, WHITE)
-                    line3_x = start_x + slot_width // 2 - line3_text.get_width() // 2
-                    self.screen.blit(line3_text, (line3_x, y + 78))
-                else:
-                    pygame.draw.rect(self.screen, DARK_RED, slot_rect)
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GOLD)
-                    self.screen.blit(slot_text, (start_x + 20, y + 42))
-                    empty_text = font_medium.render("ПУСТО", True, GRAY)
-                    self.screen.blit(empty_text, (start_x + slot_width // 2 - empty_text.get_width() // 2, y + 62))
-
-                slot_buttons.append((slot, slot_rect))
-
-                if save_info and slot_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 3)
-
-            # Ползунок прокрутки
-            if total_slots > visible_slots:
-                scroll_bar_x = start_x + slot_width + 15
-                scroll_bar_y = start_y
-                scroll_bar_height = visible_slots * (slot_height + spacing)
-                scroll_bar_width = 8
-
-                scroll_bg_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height)
-                pygame.draw.rect(self.screen, (40, 40, 40), scroll_bg_rect)
-                pygame.draw.rect(self.screen, GOLD, scroll_bg_rect, 1)
-
-                scroll_ratio = scroll_offset / max_scroll if max_scroll > 0 else 0
-                scroll_thumb_height = max(40, scroll_bar_height // total_slots)
-                scroll_thumb_y = scroll_bar_y + scroll_ratio * (scroll_bar_height - scroll_thumb_height)
-
-                scroll_thumb_rect = pygame.Rect(scroll_bar_x, scroll_thumb_y, scroll_bar_width, scroll_thumb_height)
-                pygame.draw.rect(self.screen, GOLD, scroll_thumb_rect)
-
-            # Кнопка "Назад"
-            back_rect = pygame.Rect(WIDTH // 2 - 100, start_y + visible_slots * (slot_height + spacing) + 20, 200, 45)
-            mouse_pos = pygame.mouse.get_pos()
-
-            if back_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(self.screen, GOLD, back_rect)
-                back_text = font_medium.render("НАЗАД", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, back_rect)
-                pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-                back_text = font_medium.render("НАЗАД", True, WHITE)
-
-            text_x = back_rect.x + back_rect.width // 2 - back_text.get_width() // 2
-            text_y = back_rect.y + back_rect.height // 2 - back_text.get_height() // 2
-            self.screen.blit(back_text, (text_x, text_y))
-
-            pygame.display.flip()
-
-            # Обработка событий
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        for slot, rect in slot_buttons:
-                            if rect.collidepoint(event.pos):
-                                # Сохраняем в выбранный слот
-                                сохранение.сохранить_игру(self.игрок, self.текущая_локация, self.chest_inventory, slot)
-                                self.add_to_log(f"Игра сохранена в слот {slot}!")
-                                waiting = False
-                                return
-
-                        if back_rect.collidepoint(event.pos):
-                            waiting = False
-                            return
-                elif event.type == pygame.MOUSEWHEEL:
-                    if event.y > 0:
-                        scroll_offset -= 1
-                    else:
-                        scroll_offset += 1
-                    scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            clock.tick(FPS)
-
-    def show_save_menu(self):
-        """Показывает меню выбора слота для сохранения (вертикальное расположение с прокруткой)"""
-
-        # ===== СИНХРОНИЗИРУЕМ ИГРОКА ПЕРЕД СОХРАНЕНИЕМ =====
-        # Убеждаемся, что у игрока есть все нужные поля
-        if "пассивные_бонусы" not in self.игрок:
-            self.игрок["пассивные_бонусы"] = {}
-            print("🔧 Добавлено поле 'пассивные_бонусы' перед сохранением")
-
-        if "выученные_навыки" not in self.игрок:
-            self.игрок["выученные_навыки"] = []
-            print("🔧 Добавлено поле 'выученные_навыки' перед сохранением")
-
-        if "очки_навыков" not in self.игрок:
-            self.игрок["очки_навыков"] = 0
-            print("🔧 Добавлено поле 'очки_навыков' перед сохранением")
-
-        if "очки_умений" not in self.игрок:
-            self.игрок["очки_умений"] = 0
-            print("🔧 Добавлено поле 'очки_умений' перед сохранением")
-
-        if "сила_бонус" not in self.игрок:
-            self.игрок["сила_бонус"] = 0
-            print("🔧 Добавлено поле 'сила_бонус' перед сохранением")
-
-        if "здоровье_бонус" not in self.игрок:
-            self.игрок["здоровье_бонус"] = 0
-            print("🔧 Добавлено поле 'здоровье_бонус' перед сохранением")
-
-        if "стойкость_бонус" not in self.игрок:
-            self.игрок["стойкость_бонус"] = 0
-            print("🔧 Добавлено поле 'стойкость_бонус' перед сохранением")
-
-        if "защита_бонус" not in self.игрок:
-            self.игрок["защита_бонус"] = 0
-            print("🔧 Добавлено поле 'защита_бонус' перед сохранением")
-
-        if "вампиризм" not in self.игрок:
-            self.игрок["вампиризм"] = False
-            print("🔧 Добавлено поле 'вампиризм' перед сохранением")
-
-        if "амулет" not in self.игрок:
-            self.игрок["амулет"] = None
-            print("🔧 Добавлено поле 'амулет' перед сохранением")
-        # =====================================================
-
-        # Получаем список существующих сохранений
-        saves_info = сохранение.list_saves()
-
-        # Параметры прокрутки
-        scroll_offset = 0
-        visible_slots = 4
-        total_slots = 5
-
-        waiting = True
-        selected_slot = None
-
-        while waiting:
-            # Затемнение фона
-            s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            s.fill((0, 0, 0, 200))
-            self.screen.blit(s, (0, 0))
-
-            # Заголовок
-            title = font_large.render("СОХРАНЕНИЕ ИГРЫ", True, GOLD)
-            title_shadow = font_large.render("СОХРАНЕНИЕ ИГРЫ", True, (80, 60, 30))
-            title_x = WIDTH // 2 - title.get_width() // 2
-            self.screen.blit(title_shadow, (title_x + 3, 63))
-            self.screen.blit(title, (title_x, 60))
-
-            # Подзаголовок
-            subtitle = font_medium.render("Выберите слот для сохранения:", True, WHITE)
-            sub_x = WIDTH // 2 - subtitle.get_width() // 2
-            self.screen.blit(subtitle, (sub_x, 120))
-
-            # ===== ВЕРТИКАЛЬНОЕ РАСПОЛОЖЕНИЕ СЛОТОВ С ПРОКРУТКОЙ =====
-            slot_buttons = []
-            slot_width = 500
-            slot_height = 110
-            spacing = 15
-            start_x = WIDTH // 2 - slot_width // 2
-            start_y = 170
-
-            # Ограничиваем прокрутку
-            max_scroll = max(0, total_slots - visible_slots)
-            scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            # Отображаем только видимые слоты
-            start_slot = scroll_offset
-            end_slot = min(start_slot + visible_slots, total_slots)
-
-            for i in range(start_slot, end_slot):
-                slot = i + 1
-                y = start_y + (i - start_slot) * (slot_height + spacing)
-
-                slot_rect = pygame.Rect(start_x, y, slot_width, slot_height)
-
-                # Проверяем, есть ли сохранение в этом слоте
-                save_info = None
-                for info in saves_info:
-                    if info["slot"] == slot:
-                        save_info = info
-                        break
-
-                # Фон слота
-                if save_info:
-                    # Есть сохранение - тёмно-синий фон
-                    pygame.draw.rect(self.screen, DARK_BLUE, slot_rect)
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-
-                    # Номер слота (слева)
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GOLD)
-                    self.screen.blit(slot_text, (start_x + 20, y + 12))
-
-                    # Информация о сохранении (по центру, 3 строки)
-                    line1 = f"{save_info['class']} | Уровень {save_info['level']}"
-                    line1_text = font_small.render(line1, True, WHITE)
-                    line1_x = start_x + slot_width // 2 - line1_text.get_width() // 2
-                    self.screen.blit(line1_text, (line1_x, y + 28))
-
-                    line2 = f"{save_info['time']} | День {save_info['day']}"
-                    line2_text = font_small.render(line2, True, WHITE)
-                    line2_x = start_x + slot_width // 2 - line2_text.get_width() // 2
-                    self.screen.blit(line2_text, (line2_x, y + 53))
-
-                    line3 = f"{save_info['location']}"
-                    line3_text = font_small.render(line3, True, WHITE)
-                    line3_x = start_x + slot_width // 2 - line3_text.get_width() // 2
-                    self.screen.blit(line3_text, (line3_x, y + 78))
-
-                    # ===== ДОБАВЛЯЕМ ИНДИКАТОР СТАРОЙ ВЕРСИИ =====
-                    # Проверяем, есть ли в сохранении пассивные бонусы
-                    try:
-                        with open(f"save_{slot}.json", 'r', encoding='utf-8') as f:
-                            данные = json.load(f)
-                            игрок_из_сейва = данные.get("игрок", {})
-                            if "пассивные_бонусы" not in игрок_из_сейва:
-                                old_text = font_tiny.render("⚠️ СТАРАЯ ВЕРСИЯ", True, HEALTH_YELLOW)
-                                self.screen.blit(old_text, (start_x + slot_width - 130, y + 15))
-                    except:
-                        pass
-
-                else:
-                    # Пустой слот - тёмно-красный фон
-                    pygame.draw.rect(self.screen, DARK_RED, slot_rect)
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GOLD)
-                    self.screen.blit(slot_text, (start_x + 20, y + 42))
-                    empty_text = font_medium.render("ПУСТО", True, GRAY)
-                    self.screen.blit(empty_text, (start_x + slot_width // 2 - empty_text.get_width() // 2, y + 62))
-
-                slot_buttons.append((slot, slot_rect))
-
-                # Эффект при наведении
-                if slot_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 3)
-
-            # ===== ПОЛЗУНОК ПРОКРУТКИ =====
-            if total_slots > visible_slots:
-                scroll_bar_x = start_x + slot_width + 15
-                scroll_bar_y = start_y
-                scroll_bar_height = visible_slots * (slot_height + spacing)
-                scroll_bar_width = 8
-
-                scroll_bg_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height)
-                pygame.draw.rect(self.screen, (40, 40, 40), scroll_bg_rect)
-                pygame.draw.rect(self.screen, GOLD, scroll_bg_rect, 1)
-
-                scroll_ratio = scroll_offset / max_scroll if max_scroll > 0 else 0
-                scroll_thumb_height = max(40, scroll_bar_height // total_slots)
-                scroll_thumb_y = scroll_bar_y + scroll_ratio * (scroll_bar_height - scroll_thumb_height)
-
-                scroll_thumb_rect = pygame.Rect(scroll_bar_x, scroll_thumb_y, scroll_bar_width, scroll_thumb_height)
-                pygame.draw.rect(self.screen, GOLD, scroll_thumb_rect)
-
-            # Кнопка "Назад"
-            back_rect = pygame.Rect(WIDTH // 2 - 100, start_y + visible_slots * (slot_height + spacing) + 0, 200, 45)
-            mouse_pos = pygame.mouse.get_pos()
-
-            if back_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(self.screen, GOLD, back_rect)
-                back_text = font_medium.render("НАЗАД", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, back_rect)
-                pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-                back_text = font_medium.render("НАЗАД", True, WHITE)
-
-            text_x = back_rect.x + back_rect.width // 2 - back_text.get_width() // 2
-            text_y = back_rect.y + back_rect.height // 2 - back_text.get_height() // 2
-            self.screen.blit(back_text, (text_x, text_y))
-
-            pygame.display.flip()
-
-            # ===== ОБРАБОТКА СОБЫТИЙ =====
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        # Проверяем клик по слотам
-                        for slot, rect in slot_buttons:
-                            if rect.collidepoint(event.pos):
-                                selected_slot = slot
-                                waiting = False
-                                break
-
-                        # Проверяем клик по кнопке "Назад"
-                        if back_rect.collidepoint(event.pos):
-                            return
-                elif event.type == pygame.MOUSEWHEEL:
-                    if event.y > 0:
-                        scroll_offset -= 1
-                    else:
-                        scroll_offset += 1
-                    scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            clock.tick(FPS)
-
-        # Если выбран слот - показываем подтверждение
-        if selected_slot:
-            self.show_save_confirmation(selected_slot)
 
     def rest_in_hub(self):
         """Отдых в убежище — полное восстановление (только 1 раз в день)"""
@@ -3158,7 +2786,7 @@ class Game:
                             self.show_message("Нет сохранений!", duration=60)
                             continue
 
-                        selected_slot = self.show_load_menu()
+                        selected_slot = show_load_menu(self)
                         print(f"🔍 selected_slot = {selected_slot}")
                         if selected_slot:
                             print(f"📂 Загружаем слот {selected_slot}")
@@ -3209,173 +2837,6 @@ class Game:
 
         return None
 
-    def show_load_menu(self):
-        """Показывает меню выбора слота для загрузки (только непустые слоты)"""
-        print("📋 show_load_menu вызвана")
-
-        saves_info = сохранение.list_saves()
-
-        if not saves_info:
-            print("   ❌ Нет сохранений!")
-            self.show_message("Нет сохранений!", duration=60)
-            return None  # 👈 ВОЗВРАЩАЕМ None, НЕ True!
-
-        scroll_offset = 0
-        visible_slots = 4
-        total_slots = 5
-
-        waiting = True
-        selected_slot = None
-
-        while waiting:
-            # Затемнение фона
-            s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            s.fill((0, 0, 0, 200))
-            self.screen.blit(s, (0, 0))
-
-            # Заголовок
-            title = font_large.render("ЗАГРУЗКА ИГРЫ", True, GOLD)
-            title_shadow = font_large.render("ЗАГРУЗКА ИГРЫ", True, (80, 60, 30))
-            title_x = WIDTH // 2 - title.get_width() // 2
-            self.screen.blit(title_shadow, (title_x + 3, 63))
-            self.screen.blit(title, (title_x, 60))
-
-            subtitle = font_medium.render("Выберите слот для загрузки:", True, WHITE)
-            sub_x = WIDTH // 2 - subtitle.get_width() // 2
-            self.screen.blit(subtitle, (sub_x, 120))
-
-            # ===== ВЕРТИКАЛЬНОЕ РАСПОЛОЖЕНИЕ СЛОТОВ =====
-            slot_buttons = []
-            slot_width = 500
-            slot_height = 110
-            spacing = 15
-            start_x = WIDTH // 2 - slot_width // 2
-            start_y = 170
-
-            max_scroll = max(0, total_slots - visible_slots)
-            scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            start_slot = scroll_offset
-            end_slot = min(start_slot + visible_slots, total_slots)
-
-            for i in range(start_slot, end_slot):
-                slot = i + 1
-                y = start_y + (i - start_slot) * (slot_height + spacing)
-
-                slot_rect = pygame.Rect(start_x, y, slot_width, slot_height)
-
-                # Проверяем, есть ли сохранение в этом слоте
-                save_info = None
-                for info in saves_info:
-                    if info["slot"] == slot:
-                        save_info = info
-                        break
-
-                if save_info:
-                    # ЕСТЬ СОХРАНЕНИЕ - активный слот
-                    pygame.draw.rect(self.screen, DARK_BLUE, slot_rect)
-                    pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GOLD)
-                    self.screen.blit(slot_text, (start_x + 20, y + 12))
-
-                    line1 = f"{save_info['class']} | Уровень {save_info['level']}"
-                    line1_text = font_small.render(line1, True, WHITE)
-                    line1_x = start_x + slot_width // 2 - line1_text.get_width() // 2
-                    self.screen.blit(line1_text, (line1_x, y + 28))
-
-                    line2 = f"{save_info['time']} | День {save_info['day']}"
-                    line2_text = font_small.render(line2, True, WHITE)
-                    line2_x = start_x + slot_width // 2 - line2_text.get_width() // 2
-                    self.screen.blit(line2_text, (line2_x, y + 53))
-
-                    line3 = f"{save_info['location']}"
-                    line3_text = font_small.render(line3, True, WHITE)
-                    line3_x = start_x + slot_width // 2 - line3_text.get_width() // 2
-                    self.screen.blit(line3_text, (line3_x, y + 78))
-
-                    slot_buttons.append((slot, slot_rect))
-
-                    if slot_rect.collidepoint(pygame.mouse.get_pos()):
-                        pygame.draw.rect(self.screen, GOLD, slot_rect, 3)
-                else:
-                    # ПУСТОЙ СЛОТ - неактивный
-                    pygame.draw.rect(self.screen, (40, 40, 40), slot_rect)
-                    pygame.draw.rect(self.screen, GRAY, slot_rect, 2)
-                    slot_text = font_medium.render(f"СЛОТ {slot}", True, GRAY)
-                    self.screen.blit(slot_text, (start_x + 20, y + 42))
-                    empty_text = font_medium.render("ПУСТО", True, GRAY)
-                    self.screen.blit(empty_text, (start_x + slot_width // 2 - empty_text.get_width() // 2, y + 62))
-
-            # Ползунок прокрутки
-            if total_slots > visible_slots:
-                scroll_bar_x = start_x + slot_width + 15
-                scroll_bar_y = start_y
-                scroll_bar_height = visible_slots * (slot_height + spacing)
-                scroll_bar_width = 8
-
-                scroll_bg_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height)
-                pygame.draw.rect(self.screen, (40, 40, 40), scroll_bg_rect)
-                pygame.draw.rect(self.screen, GOLD, scroll_bg_rect, 1)
-
-                scroll_ratio = scroll_offset / max_scroll if max_scroll > 0 else 0
-                scroll_thumb_height = max(40, scroll_bar_height // total_slots)
-                scroll_thumb_y = scroll_bar_y + scroll_ratio * (scroll_bar_height - scroll_thumb_height)
-
-                scroll_thumb_rect = pygame.Rect(scroll_bar_x, scroll_thumb_y, scroll_bar_width, scroll_thumb_height)
-                pygame.draw.rect(self.screen, GOLD, scroll_thumb_rect)
-
-            # Кнопка "Назад"
-            back_rect = pygame.Rect(WIDTH // 2 - 100, start_y + visible_slots * (slot_height + spacing) + 0, 200, 45)
-            mouse_pos = pygame.mouse.get_pos()
-
-            if back_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(self.screen, GOLD, back_rect)
-                back_text = font_medium.render("НАЗАД", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, back_rect)
-                pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-                back_text = font_medium.render("НАЗАД", True, WHITE)
-
-            text_x = back_rect.x + back_rect.width // 2 - back_text.get_width() // 2
-            text_y = back_rect.y + back_rect.height // 2 - back_text.get_height() // 2
-            self.screen.blit(back_text, (text_x, text_y))
-
-            pygame.display.flip()
-
-            # ===== ОБРАБОТКА СОБЫТИЙ =====
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    print("   🟠 Получен QUIT, возвращаем None")
-                    return None  # 👈 ВОЗВРАЩАЕМ None, НЕ True!
-
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        # Проверяем клик по слотам
-                        for slot, rect in slot_buttons:
-                            if rect.collidepoint(event.pos):
-                                selected_slot = slot
-                                print(f"   ✅ Выбран слот {selected_slot}")
-                                waiting = False
-                                break
-
-                        # Проверяем клик по кнопке "Назад"
-                        if back_rect.collidepoint(event.pos):
-                            print("   🔙 Нажата кнопка НАЗАД, возвращаем None")
-                            return None  # 👈 ВОЗВРАЩАЕМ None, НЕ True!
-
-                elif event.type == pygame.MOUSEWHEEL:
-                    if event.y > 0:
-                        scroll_offset -= 1
-                    else:
-                        scroll_offset += 1
-                    scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-            clock.tick(FPS)
-
-        # ===== ВЫХОД ИЗ ЦИКЛА =====
-        print(f"📋 show_load_menu возвращает: {selected_slot}")
-        return selected_slot  # 👈 ВОЗВРАЩАЕМ ЧИСЛО ИЛИ None
 
     def show_message(self, text, duration=60):
         """Показывает сообщение на экране"""
@@ -3461,7 +2922,7 @@ class Game:
                                         self.previous_mode = "эксплорейшн"
                                     elif action == "к":  # Сохранить
                                         print("💾 Сохраняем игру")
-                                        self.show_save_menu()
+                                        show_save_menu(self)
                                     elif action == "с":  # Выход
                                         print("🚪 Выход в главное меню")
                                         if self.show_exit_dialog():

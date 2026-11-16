@@ -6,8 +6,8 @@ class SkillLoader:
     @staticmethod
     def load_skills(file_path="data/skills.json"):
         """Загружает навыки из JSON-файла"""
-        # Получаем путь к файлу относительно расположения этого скрипта
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Поднимаемся на уровень выше (из папки loaders в корень Game)
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         full_path = os.path.join(current_dir, file_path)
 
         try:
