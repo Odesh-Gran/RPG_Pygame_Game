@@ -4,9 +4,8 @@
 
 import pygame
 import sys
-import враги
-import exploration
-
+from entities import enemies as враги
+from systems import exploration
 # Инициализация Pygame
 pygame.init()
 

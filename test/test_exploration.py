@@ -1,7 +1,7 @@
 # test_exploration.py
 import pygame
-import exploration
-
+from systems import exploration
+from entities import enemies as враги
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()

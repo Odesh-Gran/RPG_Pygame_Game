@@ -9,7 +9,6 @@ import sys
 from pyvidplayer2 import Video
 
 # ===== ЛОКАЛЬНЫЕ НАСТРОЙКИ =====
-from config import *
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
@@ -28,9 +27,9 @@ from systems import time_system as время
 from systems import exploration
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
-from skill_loader import SkillLoader
-import сохранение
-from login_screen import LoginScreen
+from loaders.skill_loader import SkillLoader
+from loaders import save_manager as сохранение
+from ui.login_screen import LoginScreen
 
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 # ===== ИМПОРТ НАСТРОЕК =====
