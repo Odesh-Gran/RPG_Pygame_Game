@@ -7,6 +7,7 @@ import sys
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
+from systems.video_manager import VideoManager
 
 # ===== МУЗЫКА =====
 from systems.audio import MusicManager
@@ -159,9 +160,7 @@ class Game:
         self.load_backgrounds()
 
         # ===== ВИДЕО-ПЕРЕХОДЫ =====
-        self.transition_video = None
-        self.next_location = None
-        self.video_transition_active = False
+        self.video_manager = VideoManager()
 
         # ========== ИКОНКИ ДЕЙСТВИЙ ==========
         self.action_icons = {}
@@ -646,10 +645,12 @@ class Game:
 
     def change_location(self, новая_локация):
         print(f"🔴 change_location вызвана! Новая локация: {новая_локация}")
-        if self.video_transition_active:
+        # Проверяем, не идет ли уже переход (обращаемся к менеджеру видео)
+        if self.video_manager.video_transition_active:
             return
 
-        self.play_transition_video("assets/videos/transition.mp4", новая_локация)
+        # Вызываем менеджер видео, передавая ему себя (self), чтобы он имел доступ к музыке и режиму
+        self.video_manager.play_transition_video(self, "assets/videos/transition.mp4", новая_локация)
 
     def toggle_fullscreen(self):
         """Переключение между оконным и полноэкранным режимом"""
@@ -3505,10 +3506,8 @@ class Game:
 
             # ===== ОБНОВЛЯЕМ АНИМАЦИЮ ПЕРЕХОДА =====
             self.update_transition()
-            self.update_transition_video()
+            self.video_manager.update_transition_video(self)
             self.update_battle_animation()
-
-
 
             # ========== ОТРИСОВКА ==========
             if self.режим == "игра":
@@ -7161,94 +7160,6 @@ class Game:
         print(f"   Шанс контратаки: {self.игрок.get('counter_chance', 0)}%")
         print(f"   Возрождение: {self.игрок.get('revive_hp', 0)}%")
         print("=" * 50)
-
-    def play_transition_video(self, video_path, target_location):
-        try:
-            print(f"🎬 play_transition_video: {video_path} -> {target_location}")
-            # ===== ОСТАНАВЛИВАЕМ МУЗЫКУ ПЕРЕД ВИДЕО =====
-            self.music.остановить_музыку()  # 👈 ДОБАВЬТЕ!
-
-            print(f"🎬 Загрузка видео: {video_path}")
-            self.transition_video = Video(video_path)
-            self.transition_video.play()
-            self.next_location = target_location
-            self.video_transition_active = True
-            self.режим = "видео_переход"
-            print(f"▶️ Видео воспроизводится, переход к {target_location}")
-            print(f"📍 РЕЖИМ УСТАНОВЛЕН: {self.режим}")
-        except Exception as e:
-            print(f"❌ Ошибка загрузки видео: {e}")
-            self.текущая_локация = target_location
-            self.show_description = True
-            self.description_timer = 0
-            self.режим = "игра"
-
-            # ===== ЕСЛИ ВИДЕО НЕ ЗАГРУЗИЛОСЬ - ВКЛЮЧАЕМ МУЗЫКУ СРАЗУ =====
-            if self.текущая_локация != "меню" and self.music.есть_музыка(self.текущая_локация):
-                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
-            else:
-                self.music.остановить_музыку()
-
-    def update_transition_video(self):
-        """Обновляет состояние видео-перехода"""
-
-        if self.режим != "видео_переход":
-            return
-
-        if self.transition_video is None:
-            self.режим = "игра"
-            return
-
-        if not self.transition_video.active:
-            print("🎬 ВИДЕО ЗАВЕРШЕНО! Обновляем квесты...")  # 👈 ДОБАВЬ
-
-            # Завершаем переход
-            self.текущая_локация = self.next_location
-            self.show_description = True
-            self.description_timer = 0
-            время.пройти_время(5)
-            self.transition_video.close()
-            self.transition_video = None
-            self.video_transition_active = False
-            self.режим = "игра"
-
-            # Обновляем ежедневные квесты (посещение локации)
-            print(f"   📍 Текущая локация: {self.текущая_локация}")  # 👈 ДОБАВЬ
-            if hasattr(self, 'quest_system') and hasattr(self, 'игрок'):
-                if "ежедневные_квесты" in self.игрок:
-                    print(f"   🔄 ВЫЗЫВАЕМ обновить_ежедневный_прогресс(посетить, {self.текущая_локация})")  # 👈 ДОБАВЬ
-                    завершенные = self.quest_system.обновить_ежедневный_прогресс(
-                        self.игрок,
-                        "посетить",
-                        self.текущая_локация
-                    )
-                    print(f"   📊 Результат: {завершенные}")  # 👈 ДОБАВЬ
-                    if завершенные:
-                        for квест_id in завершенные:
-                            for q in self.quest_system.ежедневные_квесты:
-                                if q.get("id") == квест_id:
-                                    self.add_to_log(f"📅 Ежедневный квест выполнен: {q['название']}")
-                                    break
-
-                else:
-                    print("   ❌ Нет ежедневные_квесты в игроке!")  # 👈 ДОБАВЬ
-            else:
-                print("   ❌ Нет quest_system или игрока!")  # 👈 ДОБАВЬ
-
-            # Включаем музыку
-            if self.текущая_локация != "меню" and self.music.есть_музыка(self.текущая_локация):
-                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
-            else:
-                self.music.остановить_музыку()
-
-            print(f"🗺️ Видео-переход завершён: {self.текущая_локация}")
-            return
-
-        try:
-            self.transition_video.draw(self.screen, (0, 0), force_draw=True)
-        except Exception as e:
-            print(f"⚠️ Ошибка отрисовки видео: {e}")
-
 
     def draw_quest_tracker(self):
         """Отображает активные квесты на экране"""
