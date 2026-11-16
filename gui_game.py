@@ -46,7 +46,7 @@ from config import *
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Убежище в замке")
+pygame.display.set_caption("castle-survival v0.1")
 clock = pygame.time.Clock()
 
 # ===== СОЗДАЁМ ШРИФТЫ =====
@@ -67,9 +67,6 @@ class Game:
         self.WIDTH = 1920
         self.HEIGHT = 1080
         self.fullscreen = False
-
-        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        pygame.display.set_caption("Убежище в замке")
 
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
