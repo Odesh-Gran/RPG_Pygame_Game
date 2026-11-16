@@ -257,7 +257,7 @@ class BattleSystem:
         self.round_number += 1
         self.battle_log = []  # ← ПОЛНОСТЬЮ ОЧИЩАЕМ!
 
-        from skill_loader import SkillLoader
+        from loaders.skill_loader import SkillLoader
 
         skill = SkillLoader.get_skill_by_id(skills_data, skill_id)
         if not skill:
