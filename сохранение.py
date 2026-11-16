@@ -1,8 +1,8 @@
 import os
 import json
-import время
+from systems import time_system as время
 import pygame
-import барьеры  # 👈 ДОБАВЛЯЕМ ИМПОРТ
+from systems import barriers as барьеры
 
 # Папка для сохранений
 SAVE_DIR = "saves"

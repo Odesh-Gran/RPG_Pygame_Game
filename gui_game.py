@@ -1,23 +1,35 @@
+# ===== СТАНДАРТНЫЕ БИБЛИОТЕКИ =====
 import json
 import math
 import random
 import sys
+
+# ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
-import exploration
-import барьеры
-import верстак
-import время
-from entities import locations as локации
-from entities import items as предметы
-import сохранение
-import торговец
-from skill_loader import SkillLoader
-from systems.battle_system import BattleSystem
-from systems.inventory_system import InventorySystem
+
+# ===== ЛОКАЛЬНЫЕ НАСТРОЙКИ =====
+from config import *
+
+# ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
 from entities.player import потратить_ресурсы, проверить_голод
+from entities import locations as локации
+from entities import items as предметы
+
+# ===== ИГРОВЫЕ СИСТЕМЫ (systems) =====
+from systems.battle_system import BattleSystem
+from systems.inventory_system import InventorySystem
 from systems.quest_system import QuestSystem
+from systems import crafting as верстак
+from systems import merchant as торговец
+from systems import barriers as барьеры
+from systems import time_system as время
+from systems import exploration
+
+# ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
+from skill_loader import SkillLoader
+import сохранение
 from login_screen import LoginScreen
 
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
@@ -755,7 +767,7 @@ class Game:
                 self.backgrounds[локация] = bg
 
     def apply_class(self, название_класса):
-        import классы
+        from systems import classes as классы
 
         # ===== СБРАСЫВАЕМ ИГРОКА ПЕРЕД ПРИМЕНЕНИЕМ КЛАССА =====
         from entities.player import создать_нового_игрока
@@ -798,7 +810,7 @@ class Game:
 
     def show_class_selection(self):
         """Меню выбора класса с кликами мышью"""
-        import классы
+        from systems import classes as классы
 
         clock = pygame.time.Clock()
         классы_список = ["Воин", "Маг", "Вор"]
@@ -907,7 +919,7 @@ class Game:
 
     def start_trade(self):
         """Начинает торговлю в текущей локации"""
-        from торговец import торговцы
+        from systems.merchant import торговцы
 
         данные_торговца = торговцы.get(self.текущая_локация, {})
 
@@ -1143,7 +1155,7 @@ class Game:
                     return
                 elif action == "trade":
                     print("💰 Начинаем торговлю")
-                    from торговец import торговцы
+                    from systems.merchant import торговцы
                     данные_торговца = торговцы.get(self.текущая_локация, {})
 
                     self.режим = "торговля"
@@ -1217,7 +1229,7 @@ class Game:
         self.screen.blit(name_text, (panel_x + 15, panel_y + 35))
 
         # ===== ВРЕМЯ (СПРАВА ВВЕРХУ) =====
-        import время
+        from systems import time_system as время
         время_строка = время.показать_время()
         день = время.получить_день()
 
@@ -2167,7 +2179,7 @@ class Game:
                     else:
                         self.add_to_log(сообщение)
 
-                    урон, сообщение_голод = игрок.проверить_голод()
+                    урон, сообщение_голод = игрок.проверить_голод(self.игрок)
                     if урон:
                         self.add_to_log(сообщение_голод)
                         if self.игрок["здоровье"] <= 0:
@@ -2885,7 +2897,7 @@ class Game:
         """Выполняет обыск (вызывается после завершения шкалы)"""
         print("🔍 ВЫПОЛНЯЕМ ОБЫСК")
 
-        import рандомайзер
+        from systems import randomizer as рандомайзер
         локация_данные = локации.локации[self.текущая_локация]
         событие = рандомайзер.выбрать_событие(локация_данные)
 

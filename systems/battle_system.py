@@ -1,6 +1,6 @@
 # systems/battle_system.py
 import random
-import время
+from systems import time_system as время
 from entities import enemies as враги
 from entities import items as предметы
 
@@ -564,7 +564,7 @@ class BattleSystem:
         if item is None:
             return False, "Пустой слот"
 
-        import предметы
+        from entities import items as предметы
         данные = предметы.предметы.get(item, {})
 
         if данные.get("тип") != "еда":
