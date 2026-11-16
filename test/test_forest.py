@@ -197,7 +197,7 @@ def main():
 
     if not all_ok:
         print("\n❌ ОШИБКА: Некоторые враги не найдены!")
-        print("Проверьте файл враги.py")
+        print("Проверьте файл enemies.py")
         return
 
     # Создаём зону

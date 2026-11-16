@@ -1,10 +1,8 @@
 # systems/battle_system.py
 import random
 import время
-import предметы
-import враги
-from config import *
-
+from entities import enemies as враги
+from entities import items as предметы
 
 class BattleSystem:
     """Управляет боем: атаки, навыки, победа/поражение"""

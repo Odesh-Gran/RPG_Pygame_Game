@@ -1,6 +1,4 @@
 # systems/inventory_system.py
-import pygame
-from config import *
 
 
 class InventorySystem:
@@ -41,7 +39,7 @@ class InventorySystem:
 
     def use_item(self, item):
         """Использовать предмет (еда, книга, броня, оружие, амулет)"""
-        import предметы
+        from entities import items as предметы
 
         if item not in self.player["инвентарь"]:
             return False, "Предмета нет в инвентаре"
@@ -56,7 +54,7 @@ class InventorySystem:
             лечение = базовое_лечение + кулинария
 
             # ===== ВОССТАНОВЛЕНИЕ СЫТОСТИ И ЖАЖДЫ =====
-            from игрок import восстановить_сытость, восстановить_жажду
+            from entities.player import восстановить_сытость, восстановить_жажду
 
             сытость = данные.get("сытость", 0)
             жажда = данные.get("жажда", 0)
@@ -87,7 +85,7 @@ class InventorySystem:
 
         # ===== КНИГИ =====
         elif item_type == "книга":
-            from игрок import проверить_и_повысить_навык
+            from entities.player import проверить_и_повысить_навык
             навык = данные.get("навык", "кулинария")
             повышение = данные.get("повышение", 5)
             успех, новое_значение, сообщение = проверить_и_повысить_навык(навык, повышение)
@@ -118,7 +116,7 @@ class InventorySystem:
 
     def equip_armor(self, item):
         """Надеть броню с учётом всех бонусов"""
-        import предметы
+        from entities import items as предметы
 
         данные = предметы.предметы.get(item, {})
         if данные.get("тип") != "броня":
@@ -151,7 +149,7 @@ class InventorySystem:
 
     def equip_amulet(self, item):
         """Надеть амулет"""
-        import предметы
+        from entities import items as предметы
 
         данные = предметы.предметы.get(item, {})
         if данные.get("тип") not in ("аксессуар", "амулет"):
@@ -182,7 +180,7 @@ class InventorySystem:
             self.update_max_health()
             return
 
-        import предметы
+        from entities import items as предметы
         данные = предметы.предметы.get(амулет, {})
         эффект = данные.get("эффект")
 

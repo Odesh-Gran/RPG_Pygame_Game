@@ -8,19 +8,17 @@ import exploration
 import барьеры
 import верстак
 import время
-import локации
-import предметы
+from entities import locations as локации
+from entities import items as предметы
 import сохранение
 import торговец
 from skill_loader import SkillLoader
 from systems.battle_system import BattleSystem
 from systems.inventory_system import InventorySystem
-import игрок
-from игрок import потратить_ресурсы, проверить_голод
+from entities import player as игрок
+from entities.player import потратить_ресурсы, проверить_голод
 from systems.quest_system import QuestSystem
 from login_screen import LoginScreen
-import game_api
-from game_api import GameAPI
 
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 # ===== ИМПОРТ НАСТРОЕК =====
@@ -58,7 +56,7 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
         # ========== ОСНОВНЫЕ ПАРАМЕТРЫ ИГРЫ ==========
-        from игрок import создать_нового_игрока
+        from entities.player import создать_нового_игрока
         self.игрок = создать_нового_игрока()  # 👈 ИЗМЕНЕНО!
         self.текущая_локация = "Убежище"
         self.игра_активна = True
@@ -295,7 +293,7 @@ class Game:
             self.add_to_log(f"РЕДКИЙ ДРОП: {self.loot_rare_item}!")
 
         # ВАЖНО: Импортируем глобального игрока и синхронизируем
-        from игрок import игрок as глобальный_игрок, изменить_уровень
+        from entities.player import игрок as глобальный_игрок, изменить_уровень
 
         # Синхронизируем локального игрока с глобальным
         # (на случай, если они разошлись)
@@ -545,7 +543,7 @@ class Game:
     def load_item_icons(self):
         """Загружает иконки для всех предметов"""
 
-        import предметы
+        from entities import items as предметы
 
         # Загружаем только те, для которых есть иконки
         for item_name, path in предметы.ITEMS_WITH_ICONS.items():
@@ -566,7 +564,7 @@ class Game:
         """Создаёт иконку-заглушку для предмета на основе его реального типа"""
         icon = pygame.Surface((32, 32), pygame.SRCALPHA)
 
-        import предметы
+        from entities import items as предметы
 
         # Получаем реальные данные предмета
         item_data = предметы.предметы.get(item_name, {})
@@ -760,7 +758,7 @@ class Game:
         import классы
 
         # ===== СБРАСЫВАЕМ ИГРОКА ПЕРЕД ПРИМЕНЕНИЕМ КЛАССА =====
-        from игрок import создать_нового_игрока
+        from entities.player import создать_нового_игрока
         self.игрок = создать_нового_игрока()
         # Обновляем инвентарь и бой с новым игроком
         self.inventory = InventorySystem(self.игрок, self.item_icons)
@@ -2005,8 +2003,8 @@ class Game:
         if skill["тип"] == "пассивный":
             print(f"   → Применяем пассивный навык!")
 
-            # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩУЮ ФУНКЦИЮ из игрок.py
-            from игрок import игрок as глобальный_игрок, добавить_пассивный_бонус
+            # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩУЮ ФУНКЦИЮ из player.py
+            from entities.player import игрок as глобальный_игрок, добавить_пассивный_бонус
 
             # Синхронизация
             глобальный_игрок.update(self.игрок)
@@ -3127,7 +3125,7 @@ class Game:
                         # 👇 ОСТАНАВЛИВАЕМ МУЗЫКУ МЕНЮ
                         self.остановить_музыку()
 
-                        from игрок import создать_нового_игрока
+                        from entities.player import создать_нового_игрока
                         self.игрок = создать_нового_игрока()
                         self.inventory = InventorySystem(self.игрок, self.item_icons)
                         self.battle = BattleSystem(self.игрок, self)
@@ -5667,7 +5665,7 @@ class Game:
         # Если бой был в данже, удаляем врага
         if hasattr(self, 'exploration_in_battle') and self.exploration_in_battle:
             if hasattr(self, 'current_enemy'):
-                from враги import ЛЕСНЫЕ_БОССЫ
+                from entities.enemies import ЛЕСНЫЕ_БОССЫ
                 if self.current_enemy in ЛЕСНЫЕ_БОССЫ:
                     for i, boss in enumerate(self.exploration_zone.bosses):
                         if boss.boss_name == self.current_enemy:
@@ -5997,7 +5995,7 @@ class Game:
     def add_to_belt(self, item):
         """Добавляет предмет на пояс (до 5 слотов)"""
         # Проверяем, что это еда
-        import предметы
+        from entities import items as предметы
         данные = предметы.предметы.get(item, {})
         if данные.get("тип") != "еда":
             return False
@@ -6655,7 +6653,7 @@ class Game:
 
     def load_enemy_sprite_by_name(self, enemy_name):
         """Загружает спрайт для конкретного врага"""
-        import враги
+        from entities import enemies as враги
 
         enemy_data = враги.враги.get(enemy_name)
         if not enemy_data:
@@ -7002,7 +7000,7 @@ class Game:
                 encounter_type, enemy_name, level = encounter
                 print(f"⚔️ Столкновение с {enemy_name}!")
 
-                from враги import ЛЕСНЫЕ_БОССЫ
+                from entities.enemies import ЛЕСНЫЕ_БОССЫ
 
                 if encounter_type == "boss" or enemy_name in ЛЕСНЫЕ_БОССЫ:
                     self.start_boss_battle(enemy_name)
@@ -7077,7 +7075,7 @@ class Game:
 
     def start_boss_battle(self, boss_name):
         """Начинает битву с боссом"""
-        from враги import получить_босса
+        from entities.enemies import получить_босса
 
         # ===== СБРОС ПАРАМЕТРОВ =====
         self.battle.battle_ended = False  # 👈 ОБЯЗАТЕЛЬНО!

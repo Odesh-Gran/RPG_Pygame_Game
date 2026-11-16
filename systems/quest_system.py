@@ -1,6 +1,5 @@
 import json
 import os
-import os
 print(os.path.exists("data/quests.json"))
 
 
@@ -236,7 +235,7 @@ class QuestSystem:
 
     def выдать_награду(self, игрок, награда):
         """Выдаёт награду за квест"""
-        from игрок import добавить_опыт
+        from entities.player import добавить_опыт
 
         print(f"\n🎁 ВЫПОЛНЕН КВЕСТ! Награда:")
 
@@ -313,7 +312,7 @@ class QuestSystem:
     def загрузить_ежедневные_квесты(self, игрок):
         """Загружает и обновляет ежедневные квесты"""
         import datetime
-        from игрок import создать_нового_игрока
+        from entities.player import создать_нового_игрока
 
         # Проверяем, есть ли у игрока поле для ежедневных квестов
         if "ежедневные_квесты" not in игрок:
