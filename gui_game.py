@@ -8,6 +8,8 @@ import sys
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
 
+# ===== МУЗЫКА =====
+from systems.audio import MusicManager
 # ===== ЛОКАЛЬНЫЕ НАСТРОЙКИ =====
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
@@ -109,61 +111,35 @@ class Game:
         self.inventory = InventorySystem(self.игрок, self.item_icons)
 
         # ===== МУЗЫКА =====
-        self.музыка_включена = True
-        self.текущая_музыка = None
-        self.громкость = 0.3
-        self.текущий_плейлист = []
-        self.индекс_в_плейлисте = 0
-
-        # МУЗЫКА ДЛЯ ЛОКАЦИЙ
-        self.музыка_локаций = {
-            "Холл": [
-                "assets/music/hall_1.mp3",
-            ],
-            "Кухня": [
-                "assets/music/kitchen_1.mp3",
-            ],
-            "Сад": [
-                "assets/music/garden_1.mp3",
-            ],
-            "Пруд": [
-                "assets/music/pond_1.mp3",
-            ],
-            "Мастерская": [
-                "assets/music/workshop_1.mp3",
-            ],
-            "Лестница": [
-                "assets/music/stairs_1.mp3",
-            ],
-            "Библиотека": [
-                "assets/music/library_1.mp3",
-            ],
-            "Коридор": [
-                "assets/music/corridor_1.mp3",
-            ],
-            "Темница": [
-                "assets/music/dungeon_1.mp3",
-            ],
-            "Главный зал": [
-                "assets/music/great_hall_1.mp3",
-            ],
+        # Оставляем только словарь с треками.
+        # Настройки (громкость, вкл/выкл, текущий плейлист) теперь живет внутри MusicManager.
+        музыка_локаций = {
+            "Холл": ["assets/music/hall_1.mp3"],
+            "Кухня": ["assets/music/kitchen_1.mp3"],
+            "Сад": ["assets/music/garden_1.mp3"],
+            "Пруд": ["assets/music/pond_1.mp3"],
+            "Мастерская": ["assets/music/workshop_1.mp3"],
+            "Лестница": ["assets/music/stairs_1.mp3"],
+            "Библиотека": ["assets/music/library_1.mp3"],
+            "Коридор": ["assets/music/corridor_1.mp3"],
+            "Темница": ["assets/music/dungeon_1.mp3"],
+            "Главный зал": ["assets/music/great_hall_1.mp3"],
             "Убежище": [
                 "assets/music/ubegische_1.mp3",
                 "assets/music/ubegische_2.mp3",
             ],
-            "Зачарованный лес": [
-                "assets/music/forest_1.mp3",
-            ],
-            "Древний склеп": [
-                "assets/music/crypt_1.mp3",
-            ],
-            "бой": [
-                "assets/music/battle_1.mp3",
-            ],
-            "меню": [
-                "assets/music/menu_1.mp3",
-            ],
+            "Зачарованный лес": ["assets/music/forest_1.mp3"],
+            "Древний склеп": ["assets/music/crypt_1.mp3"],
+            "бой": ["assets/music/battle_1.mp3"],
+            "меню": ["assets/music/menu_1.mp3"],
         }
+
+        # Создаем объект менеджера музыки, передаем ему треки и настройки
+        self.music = MusicManager(
+            музыка_локаций=музыка_локаций,
+            громкость=0.3,
+            включена=True
+        )
 
         # ========== СИСТЕМА БОЯ ==========
         self.battle = BattleSystem(self.игрок, self)
@@ -3089,7 +3065,7 @@ class Game:
         print("🟢 show_main_menu запущена")
 
         # ===== МУЗЫКА МЕНЮ =====
-        self.переключить_плейлист("меню")
+        self.music.переключить_плейлист("меню", self.игра_загружена)
 
         # Сбрасываем открытые барьеры
         барьеры.сбросить_открытые_барьеры()
@@ -3134,7 +3110,7 @@ class Game:
                         print("🆕 Нажата кнопка НОВАЯ ИГРА")
 
                         # 👇 ОСТАНАВЛИВАЕМ МУЗЫКУ МЕНЮ
-                        self.остановить_музыку()
+                        self.music.остановить_музыку()
 
                         from entities.player import создать_нового_игрока
                         self.игрок = создать_нового_игрока()
@@ -3157,10 +3133,10 @@ class Game:
                             print("📜 Добавлен стартовый квест (новая игра)")
 
                             # ===== ВКЛЮЧАЕМ МУЗЫКУ ДЛЯ НАЧАЛЬНОЙ ЛОКАЦИИ =====
-                            if self.есть_музыка(self.текущая_локация):
-                                self.переключить_плейлист(self.текущая_локация)
+                            if self.music.есть_музыка(self.текущая_локация):
+                                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
                             else:
-                                self.остановить_музыку()
+                                self.music.остановить_музыку()
 
                             # 👇 ВЫХОДИМ ИЗ МЕНЮ (МУЗЫКА УЖЕ ОСТАНОВЛЕНА)
                             return True
@@ -3183,7 +3159,7 @@ class Game:
                                 selected_slot)
                             if загруженный_игрок:
                                 # 👇 ОСТАНАВЛИВАЕМ МУЗЫКУ МЕНЮ
-                                self.остановить_музыку()
+                                self.music.остановить_музыку()
 
                                 self.игрок.update(загруженный_игрок)
                                 self.текущая_локация = загруженная_локация
@@ -3193,10 +3169,10 @@ class Game:
                                 self.игра_загружена = True
 
                                 # ===== ВКЛЮЧАЕМ МУЗЫКУ ДЛЯ ТЕКУЩЕЙ ЛОКАЦИИ =====
-                                if self.есть_музыка(self.текущая_локация):
-                                    self.переключить_плейлист(self.текущая_локация)
+                                if self.music.есть_музыка(self.текущая_локация):
+                                    self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
                                 else:
-                                    self.остановить_музыку()
+                                    self.music.остановить_музыку()
 
                                 # ===== ПРОВЕРЯЕМ КВЕСТЫ ПРИ ЗАГРУЗКЕ =====
                                 if not self.игрок.get("активные_квесты") and not self.игрок.get("завершенные_квесты"):
@@ -5665,13 +5641,13 @@ class Game:
         print(f"\n🏆 BATTLE_VICTORY вызвана (GUI)!")
 
         # ===== ОСТАНАВЛИВАЕМ МУЗЫКУ БОЯ =====
-        self.остановить_музыку()  # 👈 СНАЧАЛА ОСТАНАВЛИВАЕМ
+        self.music.остановить_музыку()  # 👈 СНАЧАЛА ОСТАНАВЛИВАЕМ
 
         # ===== ВОЗВРАЩАЕМ МУЗЫКУ ЛОКАЦИИ =====
-        if self.есть_музыка(self.текущая_локация):
-            self.переключить_плейлист(self.текущая_локация)
+        if self.music.есть_музыка(self.текущая_локация):
+            self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
         else:
-            self.остановить_музыку()
+            self.music.остановить_музыку()
 
         # Если бой был в данже, удаляем врага
         if hasattr(self, 'exploration_in_battle') and self.exploration_in_battle:
@@ -7190,7 +7166,7 @@ class Game:
         try:
             print(f"🎬 play_transition_video: {video_path} -> {target_location}")
             # ===== ОСТАНАВЛИВАЕМ МУЗЫКУ ПЕРЕД ВИДЕО =====
-            self.остановить_музыку()  # 👈 ДОБАВЬТЕ!
+            self.music.остановить_музыку()  # 👈 ДОБАВЬТЕ!
 
             print(f"🎬 Загрузка видео: {video_path}")
             self.transition_video = Video(video_path)
@@ -7208,10 +7184,10 @@ class Game:
             self.режим = "игра"
 
             # ===== ЕСЛИ ВИДЕО НЕ ЗАГРУЗИЛОСЬ - ВКЛЮЧАЕМ МУЗЫКУ СРАЗУ =====
-            if self.текущая_локация != "меню" and self.есть_музыка(self.текущая_локация):
-                self.переключить_плейлист(self.текущая_локация)
+            if self.текущая_локация != "меню" and self.music.есть_музыка(self.текущая_локация):
+                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
             else:
-                self.остановить_музыку()
+                self.music.остановить_музыку()
 
     def update_transition_video(self):
         """Обновляет состояние видео-перехода"""
@@ -7260,10 +7236,10 @@ class Game:
                 print("   ❌ Нет quest_system или игрока!")  # 👈 ДОБАВЬ
 
             # Включаем музыку
-            if self.текущая_локация != "меню" and self.есть_музыка(self.текущая_локация):
-                self.переключить_плейлист(self.текущая_локация)
+            if self.текущая_локация != "меню" and self.music.есть_музыка(self.текущая_локация):
+                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
             else:
-                self.остановить_музыку()
+                self.music.остановить_музыку()
 
             print(f"🗺️ Видео-переход завершён: {self.текущая_локация}")
             return
@@ -7273,100 +7249,6 @@ class Game:
         except Exception as e:
             print(f"⚠️ Ошибка отрисовки видео: {e}")
 
-    def загрузить_музыку(self, файл):
-        """Загружает и воспроизводит музыку"""
-        if not self.музыка_включена:
-            return
-
-        import os
-        if not os.path.exists(файл):  # 👈 ПРОВЕРКА
-            print(f"⚠️ Файл не найден: {файл}")
-            return
-
-        try:
-            pygame.mixer.music.stop()
-            pygame.mixer.music.load(файл)
-            pygame.mixer.music.set_volume(self.громкость)
-            pygame.mixer.music.play(-1)
-            self.текущая_музыка = файл
-            print(f"🎵 Музыка: {файл.split('/')[-1]}")
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки музыки: {e}")
-
-    def переключить_плейлист(self, локация):
-        """Переключает на новый плейлист локации"""
-
-        # ===== НЕ ВКЛЮЧАЕМ МУЗЫКУ МЕНЮ ПОСЛЕ ЗАГРУЗКИ ИГРЫ =====
-        if локация == "меню" and self.игра_загружена:
-            return
-
-        if not self.есть_музыка(локация):
-            return
-
-        плейлист = self.музыка_локаций[локация]
-        import random
-        self.текущий_плейлист = плейлист.copy()
-        random.shuffle(self.текущий_плейлист)
-        self.индекс_в_плейлисте = 0
-        self.играть_следующий_трек()
-
-    def играть_следующий_трек(self):
-        """Играет следующий трек из плейлиста"""
-        if not self.текущий_плейлист:
-            return
-
-        import os
-
-        while self.индекс_в_плейлисте < len(self.текущий_плейлист):
-            файл = self.текущий_плейлист[self.индекс_в_плейлисте]
-            if os.path.exists(файл):
-                self.загрузить_музыку(файл)
-                self.индекс_в_плейлисте += 1
-                return
-            else:
-                print(f"⚠️ Пропускаем: {файл}")
-                self.индекс_в_плейлисте += 1
-
-        # Все файлы в плейлисте не найдены
-        if self.индекс_в_плейлисте >= len(self.текущий_плейлист):
-            import random
-            random.shuffle(self.текущий_плейлист)
-            self.индекс_в_плейлисте = 0
-            self.играть_следующий_трек()
-
-    def переключить_музыку(self):
-        """Включает/выключает музыку"""
-        self.музыка_включена = not self.музыка_включена
-        if self.музыка_включена:
-            pygame.mixer.music.unpause()
-            print("🎵 Музыка включена")
-        else:
-            pygame.mixer.music.pause()
-            print("🔇 Музыка выключена")
-
-    def остановить_музыку(self):
-        """Останавливает музыку"""
-        try:
-            pygame.mixer.music.stop()
-            self.текущая_музыка = None
-            print("🔇 Музыка остановлена")
-        except Exception as e:
-            print(f"⚠️ Ошибка остановки музыки: {e}")
-
-    def есть_музыка(self, локация):
-        """Проверяет, есть ли музыка для локации"""
-        if локация not in self.музыка_локаций:
-            return False
-
-        плейлист = self.музыка_локаций[локация]
-        if not плейлист:
-            return False
-
-        import os
-        for файл in плейлист:
-            if os.path.exists(файл):
-                return True
-        return False
 
     def draw_quest_tracker(self):
         """Отображает активные квесты на экране"""
