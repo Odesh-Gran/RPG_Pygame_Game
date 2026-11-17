@@ -1,5 +1,6 @@
 import json
 import os
+from entities import locations as локации
 print(os.path.exists("data/quests.json"))
 
 

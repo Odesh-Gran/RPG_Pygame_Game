@@ -492,19 +492,27 @@ class BattleSystem:
             except Exception as e:
                 print(f"   ⚠️ Ошибка обновления квестов: {e}")
 
-        print(f"🔍 self.game.api: {self.game.api}")
-        print(f"🔍 self.game.api.token: {self.game.api.token}")
+        game = getattr(self, "game", None)
+        api = getattr(game, "api", None) if game is not None else None
+        print(f"🔍 self.game.api: {api}")
+        if api is not None:
+            print(f"🔍 self.game.api.token: {getattr(api, 'token', None)}")
+        else:
+            print("⚠️ API недоступен (офлайн-режим)")
         # ===== ДОСТИЖЕНИЯ ЗА УБИЙСТВО ВРАГА =====
         if self.game and hasattr(self.game, 'api') and self.game.api:
             enemy_name = self.current_enemy
             achievement_data = self._get_achievement_for_enemy(enemy_name)
             if achievement_data:
-                self.game.api.save_achievement(
+                сохранено = self.game.api.save_achievement(
                     name=achievement_data["name"],
                     description=achievement_data["description"]
                 )
                 if hasattr(self.game, 'add_to_log'):
-                    self.game.add_to_log(f"🏆 Получено достижение: {achievement_data['name']}")
+                    if сохранено:
+                        self.game.add_to_log(f"🏆 Получено достижение: {achievement_data['name']}")
+                    else:
+                        self.game.add_to_log(f"ℹ️ Достижение «{achievement_data['name']}» уже было получено")
 
         # ===== ПОЛУЧАЕМ НАГРАДУ =====
         награда = self.enemy_data.get("награда", ("хлеб", 5))

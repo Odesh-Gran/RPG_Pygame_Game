@@ -6,6 +6,8 @@ import sys
 
 from ui.battle_ui import draw_battle
 
+from systems.dungeon_controller import DungeonController
+
 from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
@@ -155,6 +157,9 @@ class Game:
 
         # ========== СИСТЕМА БОЯ ==========
         self.battle = BattleSystem(self.игрок, self)
+
+        # ========== КОНТРОЛЛЕР ДАНЖЕЙ ==========   #
+        self.dungeon = DungeonController(self)
 
         # ========== ГЛАВНОЕ МЕНЮ ==========
         menu_result = self.show_main_menu()
@@ -1771,7 +1776,7 @@ class Game:
 
                     print("🌳 Вход в Зачарованный лес!")
                     self.текущая_локация = "Зачарованный лес"
-                    self.init_forest_exploration()
+                    self.dungeon.init_forest()
                     self.режим = "эксплорейшн"
                     self.exploration_in_battle = False
 
@@ -1795,7 +1800,7 @@ class Game:
 
                     print("💀 Вход в Древний склеп!")
                     self.текущая_локация = "Древний склеп"
-                    self.init_crypt_exploration()
+                    self.dungeon.init_crypt()
                     self.режим = "эксплорейшн"
                     self.exploration_in_battle = False
 
@@ -2616,7 +2621,7 @@ class Game:
 
             elif self.режим == "эксплорейшн":
                 if hasattr(self, 'exploration_zone'):
-                    self.handle_exploration()
+                    self.dungeon.handle()
                     self.draw_loot_panel()
                 else:
                     print("❌ exploration_zone не существует!")
@@ -4911,186 +4916,7 @@ class Game:
         pygame.time.wait(200)
         время.пройти_время(2)
 
-    def init_forest_exploration(self):
-        """Инициализирует коридорный данж - Зачарованный лес"""
-        print("\n" + "=" * 50)
-        print("🏰 ИНИЦИАЛИЗАЦИЯ КОРИДОРНОГО ДАНЖА - ЗАЧАРОВАННЫЙ ЛЕС")
-        print("=" * 50)
 
-        collision_map_path = "assets/dungeon/forest_collision.png"
-        visual_map_path = "assets/dungeon/forest_visual.png"
-
-        self.exploration_zone = exploration.ExplorationZone(
-            2016, 3024,
-            collision_map_path=collision_map_path,
-            visual_map_path=visual_map_path
-        )
-
-        self.exploration_zone.load_enemies_from_map("forest")
-
-        self.exploration_in_battle = False
-        self.in_dungeon = True  # 👈 ДОБАВЛЯЕМ!
-
-        print("\n" + "=" * 50)
-        print(f"✅ КОРИДОРНЫЙ ДАНЖ ИНИЦИАЛИЗИРОВАН!")
-        print(f"   - Мобов: {len(self.exploration_zone.mobs)}")
-        print(f"   - Боссов: {len(self.exploration_zone.bosses)}")
-        print("=" * 50)
-
-    def init_crypt_exploration(self):
-        """Инициализирует данж - Древний склеп"""
-        print("\n" + "=" * 50)
-        print("💀 ИНИЦИАЛИЗАЦИЯ ДРЕВНЕГО СКЛЕПА")
-        print("=" * 50)
-
-        collision_map_path = "assets/dungeon/crypt_collision.png"
-        visual_map_path = "assets/dungeon/crypt_visual.png"
-
-        self.exploration_zone = exploration.ExplorationZone(
-            2016, 3024,
-            collision_map_path=collision_map_path,
-            visual_map_path=visual_map_path
-        )
-
-        self.exploration_zone.load_enemies_from_map("crypt")
-
-        self.exploration_in_battle = False
-        self.in_dungeon = True  # 👈 ДОБАВЛЯЕМ!
-
-        print("\n" + "=" * 50)
-        print(f"✅ СКЛЕП ИНИЦИАЛИЗИРОВАН!")
-        print(f"   - Мобов: {len(self.exploration_zone.mobs)}")
-        print(f"   - Боссов: {len(self.exploration_zone.bosses)}")
-        print("=" * 50)
-
-    def handle_exploration(self):
-        """Обрабатывает исследование большой локации"""
-        if self.режим != "эксплорейшн":
-            return
-
-        if not hasattr(self, 'exploration_zone'):
-            print("❌ ОШИБКА: exploration_zone не создан!")
-            self.режим = "игра"
-            self.in_dungeon = False  # 👈 ДОБАВЛЯЕМ
-            return
-
-        # Получаем нажатые клавиши
-        keys = pygame.key.get_pressed()
-
-        # Обновляем зону
-        self.exploration_zone.update(keys)
-
-        # Проверяем столкновения (только если не в бою)
-        if not hasattr(self, 'exploration_in_battle') or not self.exploration_in_battle:
-            encounter = self.exploration_zone.check_encounters()
-            if encounter:
-                encounter_type, enemy_name, level = encounter
-                print(f"⚔️ Столкновение с {enemy_name}!")
-
-                from entities.enemies import ЛЕСНЫЕ_БОССЫ
-
-                if encounter_type == "boss" or enemy_name in ЛЕСНЫЕ_БОССЫ:
-                    self.start_boss_battle(enemy_name)
-                else:
-                    self.start_battle(enemy_name)
-
-                self.режим = "бой"
-                self.exploration_in_battle = True
-                return
-
-        # Отрисовка зоны
-        self.exploration_zone.draw(self.screen)
-
-        # Рисуем статус-бар (здоровье, опыт, уровень)
-        self.draw_status()
-
-        # Рисуем панель действий (кнопки)
-        self.draw_actions()
-
-        # Рисуем лог событий
-        self.draw_log_panel()
-
-        # Рисуем интерфейс экспедиции
-        self.draw_exploration_ui()
-
-        # Кнопка выхода (оставляем на всякий случай)
-        exit_button = pygame.Rect(10, 10, 100, 40)
-        mouse_pos = pygame.mouse.get_pos()
-
-        if exit_button.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, exit_button)
-            exit_text = font_medium.render("ВЫЙТИ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, exit_button)
-            pygame.draw.rect(self.screen, GOLD, exit_button, 2)
-            exit_text = font_medium.render("ВЫЙТИ", True, WHITE)
-
-        self.screen.blit(exit_text, (exit_button.x + 15, exit_button.y + 8))
-        self.exploration_exit_button = exit_button
-
-        # ===== ПРОВЕРКА КЛИКА ПО КНОПКЕ ВЫХОДА =====
-        # Этот код уже есть в run(), но для надёжности добавим сюда
-        # Если клик по exit_button — выходим из данжа
-
-    def draw_exploration_ui(self):
-        """Рисует интерфейс для экспедиции"""
-        # Панель информации в левом верхнем углу
-        info_panel = pygame.Rect(10, 60, 250, 100)
-        pygame.draw.rect(self.screen, (0, 0, 0, 180), info_panel)
-        pygame.draw.rect(self.screen, GOLD, info_panel, 2)
-
-        # Текст
-        texts = [
-            f"Позиция: ({int(self.exploration_zone.player_x)}, {int(self.exploration_zone.player_y)})",
-            f"Мобы: {len([m for m in self.exploration_zone.mobs if m.is_alive])}",
-            f"Босс: {'Жив' if not any(b.defeated for b in self.exploration_zone.bosses) else 'Побеждён'}"
-        ]
-
-        for i, text in enumerate(texts):
-            text_surface = font_small.render(text, True, (200, 200, 200))
-            self.screen.blit(text_surface, (20, 70 + i * 25))
-
-        # Управление
-        controls = [
-            "WASD/Стрелки - движение",
-            "Выйти - кнопка в левом верхнем углу"
-        ]
-
-        for i, text in enumerate(controls):
-            text_surface = font_tiny.render(text, True, (150, 150, 150))
-            self.screen.blit(text_surface, (20, HEIGHT - 40 + i * 15))
-
-    def start_boss_battle(self, boss_name):
-        """Начинает битву с боссом"""
-        from entities.enemies import получить_босса
-
-        # ===== СБРОС ПАРАМЕТРОВ =====
-        self.battle.battle_ended = False  # 👈 ОБЯЗАТЕЛЬНО!
-        self.battle.enemy_data = None
-        self.enemy_bleed_duration = 0
-        self.enemy_bleed_damage = 0
-        self.enemy_stunned = False
-        self.enemy_weakened_duration = 0
-        self.blocking = False
-        self.enemy_damage_multiplier = 1.0
-        # =============================
-
-        self.режим = "бой"
-        self.current_enemy = boss_name
-        self.enemy_data = получить_босса(boss_name).copy()
-        self.enemy_health = self.enemy_data["здоровье"]
-        self.battle_log = [f"👑 ПЕРЕД ТОБОЙ {boss_name.replace('_', ' ').upper()}!"]
-        self.is_boss_battle = True
-
-        # ===== ДОБАВЛЯЕМ ДАННЫЕ В BATTLE SYSTEM =====
-        self.battle.current_enemy = boss_name
-        self.battle.enemy_data = self.enemy_data
-        self.battle.enemy_health = self.enemy_health
-        self.battle.battle_log = self.battle_log
-        # =============================================
-
-        self.start_battle_animation()
-        время.пройти_время(2)
 
     def _пересчитать_пассивные_бонусы(self):
         """
@@ -5161,6 +4987,7 @@ class Game:
         print(f"   Шанс контратаки: {self.игрок.get('counter_chance', 0)}%")
         print(f"   Возрождение: {self.игрок.get('revive_hp', 0)}%")
         print("=" * 50)
+
 
 if __name__ == "__main__":
     from game_api import GameAPI  # Добавляем импорт
