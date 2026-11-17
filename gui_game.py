@@ -6,6 +6,8 @@ import sys
 
 from ui.battle_ui import draw_battle
 
+from ui.map_ui import draw_map, handle_map_click
+
 from ui.hud import draw_status, draw_location, draw_actions
 
 from ui.chest_ui import draw_chest, handle_chest_click
@@ -1944,7 +1946,7 @@ class Game:
                         elif self.режим == "крафт":
                             handle_craft_click(self, mouse_pos)
                         elif self.режим == "карта":
-                            self.handle_map_click(mouse_pos)
+                            handle_map_click(self, mouse_pos)
                         elif self.режим == "обучение":
                             self.handle_skills_click(mouse_pos)
                         elif self.режим == "сундук":
@@ -2013,7 +2015,7 @@ class Game:
                 draw_craft(self)
 
             elif self.режим == "карта":
-                self.draw_map()
+                draw_map(self)
 
             elif self.режим == "сундук":
                 draw_chest(self)
@@ -3260,286 +3262,6 @@ class Game:
 
         self.blocking = False
         время.пройти_время(15)
-
-    def draw_map(self):
-        """Отрисовка карты с кликабельными локациями и учётом барьеров"""
-
-        # Лёгкое затемнение (прозрачное)
-        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 10))  # 80 - лёгкое затемнение (рекомендую 80 вместо 180)
-        self.screen.blit(s, (0, 0))
-
-        # Координаты кликабельных областей для каждой локации
-        self.map_rects = {
-            "Холл": pygame.Rect(390, 90, 120, 80),
-            "Кухня": pygame.Rect(625, 70, 140, 65),
-            "Коридор": pygame.Rect(190, 75, 60, 95),
-            "Лестница": pygame.Rect(388, 223, 90, 78),
-            "Сад": pygame.Rect(635, 168, 60, 130),
-            "Пруд": pygame.Rect(830, 183, 94, 100),
-            "Темница": pygame.Rect(62, 260, 148, 65),
-            "Библиотека": pygame.Rect(355, 371, 140, 73),
-            "Мастерская": pygame.Rect(653, 370, 177, 80),
-            "Главный зал": pygame.Rect(43, 80, 70, 110),
-            "Убежище": pygame.Rect(527, 212, 70, 80)
-        }
-
-        # Загружаем карту
-        try:
-            map_img = pygame.image.load("assets/ui/map.png").convert_alpha()
-            map_img = pygame.transform.scale(map_img, (1000, 600))
-            self.screen.blit(map_img, (WIDTH // 2 - 500, HEIGHT // 2 - 300))
-        except Exception as e:
-            print(f"❌ Ошибка загрузки карты: {e}")
-            text = font_medium.render("Карта не найдена", True, GOLD)
-            self.screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2))
-
-        # Создаём словарь инвентаря для проверки барьеров
-        инвентарь_словарь = {}
-        for предмет in self.игрок["инвентарь"]:
-            инвентарь_словарь[предмет] = инвентарь_словарь.get(предмет, 0) + 1
-
-        # Проверяем доступность каждой локации
-        self.доступные_локации = {}
-        self.заблокированные_локации = {}
-
-        for название, rect in self.map_rects.items():
-            доступна, причина, подсказка = барьеры.проверить_доступность_локации(
-                название, инвентарь_словарь
-            )
-
-            if доступна:
-                self.доступные_локации[название] = rect
-            else:
-                self.заблокированные_локации[название] = {
-                    "rect": rect,
-                    "причина": причина,
-                    "подсказка": подсказка
-                }
-
-        # Рисуем блокировки поверх карты
-        map_x = WIDTH // 2 - 500
-        map_y = HEIGHT // 2 - 300
-
-        for название, данные in self.заблокированные_локации.items():
-            rect = данные["rect"]
-            world_rect = pygame.Rect(map_x + rect.x, map_y + rect.y, rect.width, rect.height)
-
-            # Затемняем заблокированную локацию
-            s_block = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-            s_block.fill((0, 0, 0, 150))
-            self.screen.blit(s_block, (world_rect.x, world_rect.y))
-
-            # Рисуем замок
-            lock_text = font_small.render("Х", True, GOLD)
-            self.screen.blit(lock_text, (world_rect.x + rect.width // 2 - 10, world_rect.y + rect.height // 2 - 10))
-
-        # Подсвечиваем текущую локацию
-        if self.текущая_локация in self.map_rects:
-            rect = self.map_rects[self.текущая_локация]
-            highlight_rect = pygame.Rect(map_x + rect.x, map_y + rect.y, rect.width, rect.height)
-            pygame.draw.rect(self.screen, GOLD, highlight_rect, 3)
-
-            # Добавляем текст "ВЫ ЗДЕСЬ"
-            here_text = font_small.render("ТЫ", True, GOLD)
-            self.screen.blit(here_text, (map_x + rect.x + 35, map_y + rect.y - 15))
-
-        # Подсветка при наведении и показ подсказок
-        mouse_pos = pygame.mouse.get_pos()
-        self.map_hover_location = None
-        self.map_hover_blocked = False
-        self.map_hover_reason = None
-
-        for название, rect in self.доступные_локации.items():
-            world_rect = pygame.Rect(map_x + rect.x, map_y + rect.y, rect.width, rect.height)
-            if world_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(self.screen, GOLD, world_rect, 2)
-                self.map_hover_location = название
-                self.map_hover_blocked = False
-
-        for название, данные in self.заблокированные_локации.items():
-            rect = данные["rect"]
-            world_rect = pygame.Rect(map_x + rect.x, map_y + rect.y, rect.width, rect.height)
-            if world_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(self.screen, BLOOD_RED, world_rect, 2)
-                self.map_hover_location = название
-                self.map_hover_blocked = True
-                self.map_hover_reason = данные["причина"]
-                self.map_hover_hint = данные["подсказка"]
-
-        if hasattr(self, 'map_hover_location') and self.map_hover_location:
-            tip_x = mouse_pos[0] + 15
-            tip_y = mouse_pos[1] + 15
-
-            # Получаем данные локации
-            локация_данные = локации.локации.get(self.map_hover_location, {})
-            уровень = локация_данные.get("уровень", "?")
-            сложность = локация_данные.get("сложность", "")
-
-            # Определяем цвет и звёзды сложности
-            if сложность == "легко":
-                цвет_сложности = HEALTH_GREEN
-                звезды = "[1/5]"
-            elif сложность == "средне":
-                цвет_сложности = HEALTH_YELLOW
-                звезды = "[3/5]"
-            elif сложность == "сложно":
-                цвет_сложности = HEALTH_RED
-                звезды = "[5/5]"
-            else:
-                цвет_сложности = WHITE
-                звезды = "[?]"
-
-            if self.map_hover_blocked:
-                # Заблокированная локация - ДОБАВЛЯЕМ ФОН
-                tip_width = 300
-                tip_height = 80
-                tip_bg = pygame.Surface((tip_width, tip_height), pygame.SRCALPHA)
-                tip_bg.fill((0, 0, 0, 200))
-                self.screen.blit(tip_bg, (tip_x, tip_y))
-
-                tip_text = font_small.render(f"[ЗАКРЫТО] {self.map_hover_location}", True, BLOOD_RED)
-                self.screen.blit(tip_text, (tip_x + 10, tip_y + 5))
-
-                reason_text = font_small.render(self.map_hover_reason[:40], True, WHITE)
-                self.screen.blit(reason_text, (tip_x + 10, tip_y + 30))
-
-                hint_text = font_small.render(f"[СОВЕТ] {self.map_hover_hint}", True, GOLD)
-                self.screen.blit(hint_text, (tip_x + 10, tip_y + 55))
-            else:
-                # Доступная локация
-                tip_width = 220
-                tip_height = 95
-
-                # Фон подсказки
-                tip_bg = pygame.Surface((tip_width, tip_height), pygame.SRCALPHA)
-                tip_bg.fill((0, 0, 0, 200))
-                self.screen.blit(tip_bg, (tip_x, tip_y))
-
-                # Название
-                name_text = font_small.render(f"[ЛОКАЦИЯ] {self.map_hover_location}", True, GOLD)
-                self.screen.blit(name_text, (tip_x + 10, tip_y + 5))
-
-                # Уровень
-                level_text = font_small.render(f"[УРОВЕНЬ] {уровень}", True, WHITE)
-                self.screen.blit(level_text, (tip_x + 10, tip_y + 30))
-
-                # Сложность
-                сложность_текст = font_small.render(f"[СЛОЖНОСТЬ] {звезды}", True, цвет_сложности)
-                self.screen.blit(сложность_текст, (tip_x + 10, tip_y + 55))
-
-                # Предупреждение если уровень выше
-                if уровень != "?" and уровень > self.игрок["уровень"] + 2:
-                    warning = font_small.render("[ОПАСНО]", True, HEALTH_RED)
-                    self.screen.blit(warning, (tip_x + 10, tip_y + 75))
-                elif уровень != "?" and уровень < self.игрок["уровень"] - 2:
-                    easy = font_small.render("[БЕЗОПАСНО]", True, HEALTH_GREEN)
-                    self.screen.blit(easy, (tip_x + 10, tip_y + 75))
-
-        # Кнопка закрытия
-        close_rect = pygame.Rect(WIDTH // 2 + 425, HEIGHT // 2 - 280, 40, 40)
-        if self.close_icon:
-            self.screen.blit(self.close_icon, (close_rect.x, close_rect.y))
-        self.map_close_button = close_rect
-
-    def handle_map_click(self, pos):
-        """Обработка кликов на карте с учётом барьеров"""
-
-        # Кнопка закрытия
-        if hasattr(self, 'map_close_button') and self.map_close_button.collidepoint(pos):
-            if hasattr(self, 'previous_mode') and self.previous_mode == "эксплорейшн":
-                self.режим = "эксплорейшн"
-            else:
-                self.режим = "игра"
-            return
-
-        map_x = WIDTH // 2 - 500
-        map_y = HEIGHT // 2 - 300
-
-        # Создаём словарь инвентаря
-        инвентарь_словарь = {}
-        for предмет in self.игрок["инвентарь"]:
-            инвентарь_словарь[предмет] = инвентарь_словарь.get(предмет, 0) + 1
-
-        # Проверяем клики по ВСЕМ локациям
-        for название, rect in self.map_rects.items():
-            world_rect = pygame.Rect(map_x + rect.x, map_y + rect.y, rect.width, rect.height)
-            if world_rect.collidepoint(pos):
-
-                print(f"\n🎯 КЛИК ПО ЛОКАЦИИ: {название}")
-                print(f"📍 Текущая локация: {self.текущая_локация}")
-                print(f"📦 Инвентарь: {инвентарь_словарь}")
-
-                # Проверяем доступность
-                доступна, причина, подсказка = барьеры.проверить_доступность_локации(
-                    название, инвентарь_словарь
-                )
-
-                print(f"🔍 Доступна: {доступна}")
-                if not доступна:
-                    print(f"   ❌ Причина: {причина}")
-                    print(f"   💡 Подсказка: {подсказка}")
-
-                if доступна:
-                    # ===== ПРОВЕРЯЕМ, ОТКРЫТ ЛИ УЖЕ БАРЬЕР =====
-                    if барьеры.is_barrier_open(название):
-                        print(f"✅ Барьер для {название} УЖЕ ОТКРЫТ, переходим")
-                        self.change_location(название)
-                        # ❌ УБИРАЕМ self.режим = "игра"
-                        return
-
-                    # ===== ИЩЕМ БАРЬЕР =====
-                    барьер_найден = False
-                    for локация_источник, барьеры_локации in барьеры.барьеры.items():
-                        for барьер_ключ, барьер in барьеры_локации.items():
-                            if барьер["локация_назначения"] == название:
-                                барьер_найден = True
-                                print(f"🔑 НАЙДЕН БАРЬЕР: {локация_источник} -> {барьер_ключ}")
-                                print(f"   Требуется: {барьер['требуется']} x{барьер.get('требуется_количество', 1)}")
-
-                                # Открываем барьер
-                                успех, сообщение, новый_инвентарь = барьеры.открыть_локацию_через_барьер(
-                                    self.текущая_локация, название, инвентарь_словарь
-                                )
-
-                                if успех:
-                                    print(f"✅ БАРЬЕР ОТКРЫТ! {сообщение}")
-
-                                    self.игрок["инвентарь"] = []
-                                    for предмет, колво in новый_инвентарь.items():
-                                        self.игрок["инвентарь"].extend([предмет] * колво)
-
-                                    инвентарь_словарь = {}
-                                    for предмет in self.игрок["инвентарь"]:
-                                        инвентарь_словарь[предмет] = инвентарь_словарь.get(предмет, 0) + 1
-
-                                    self.add_to_log(сообщение)
-                                    барьеры.открытые_барьеры.add(название)
-                                    print(f"🔓 Барьер {название} открыт и сохранён!")
-
-                                    self.change_location(название)
-                                    # ❌ УБИРАЕМ self.режим = "игра"
-                                    return
-                                else:
-                                    print(f"❌ НЕ УДАЛОСЬ ОТКРЫТЬ: {сообщение}")
-                                    self.add_to_log(сообщение)
-                                    return
-
-                    # ===== ЕСЛИ БАРЬЕР НЕ НАЙДЕН =====
-                    if not барьер_найден:
-                        print(f"🚪 Нет барьера для {название}, просто переходим")
-                        self.change_location(название)
-                        # ❌ УБИРАЕМ self.режим = "игра"
-                        return
-
-                else:
-                    print(f"❌ Локация {название} НЕДОСТУПНА")
-                    self.add_to_log(причина)
-                    if подсказка:
-                        self.add_to_log(подсказка)
-                    return
-
-        return
 
     def add_to_log(self, message):
         """Добавляет сообщение в лог событий"""
