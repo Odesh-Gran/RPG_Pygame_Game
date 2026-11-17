@@ -5,7 +5,7 @@ import random
 import sys
 
 from ui.battle_ui import draw_battle
-
+from ui.main_menu import show_main_menu
 from ui.map_ui import draw_map, handle_map_click
 
 from ui.hud import draw_status, draw_location, draw_actions
@@ -170,7 +170,7 @@ class Game:
         self.dungeon = DungeonController(self)
 
         # ========== ГЛАВНОЕ МЕНЮ ==========
-        menu_result = self.show_main_menu()
+        menu_result = show_main_menu(self)
         print(f"🟢 Результат show_main_menu(): {menu_result}")
 
         # ===== ЕСЛИ ВЫХОД ИЗ МЕНЮ - ПРЕРЫВАЕМ ИНИЦИАЛИЗАЦИЮ =====
@@ -1697,148 +1697,6 @@ class Game:
                             waiting = False
 
             clock.tick(FPS)
-
-    def show_main_menu(self):
-        """Показывает главное меню (только фон, кнопки невидимы но активны)"""
-        print("🟢 show_main_menu запущена")
-
-        # ===== МУЗЫКА МЕНЮ =====
-        self.music.переключить_плейлист("меню", self.игра_загружена)
-
-        # Сбрасываем открытые барьеры
-        барьеры.сбросить_открытые_барьеры()
-
-        # ===== ЗАГРУЖАЕМ ФОН =====
-        try:
-            bg = pygame.image.load("assets/backgrounds/menu_bg.png").convert()
-            bg = pygame.transform.scale(bg, (WIDTH, HEIGHT))
-            print("✅ Фон загружен")
-        except Exception as e:
-            print(f"❌ Ошибка загрузки фона: {e}")
-            bg = pygame.Surface((WIDTH, HEIGHT))
-            bg.fill((20, 10, 30))
-
-        menu_active = True
-        frame_count = 0
-
-        # ===== ПОЗИЦИИ КНОПОК (невидимые, но активные) =====
-        center_x = WIDTH // 2 - -250
-        y = 250
-
-        new_rect = pygame.Rect(center_x, y, 300, 60)
-        load_rect = pygame.Rect(center_x, y + 80, 300, 60)
-        exit_rect = pygame.Rect(center_x, y + 160, 300, 60)
-
-        while menu_active:
-            frame_count += 1
-            if frame_count % 60 == 0:
-                print(f"🔄 Меню активно, кадр {frame_count}")
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    print("🟠 Получен сигнал QUIT")
-                    return False
-
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    print(f"🖱️ Клик в позиции {mouse_pos}")
-
-                    # ===== КНОПКИ РАБОТАЮТ ПО СВОИМ ПОЗИЦИЯМ (НЕВИДИМЫЕ) =====
-                    if new_rect.collidepoint(mouse_pos):
-                        print("🆕 Нажата кнопка НОВАЯ ИГРА")
-
-                        # 👇 ОСТАНАВЛИВАЕМ МУЗЫКУ МЕНЮ
-                        self.music.остановить_музыку()
-
-                        from entities.player import создать_нового_игрока
-                        self.игрок = создать_нового_игрока()
-                        self.inventory = InventorySystem(self.игрок, self.item_icons)
-                        self.battle = BattleSystem(self.игрок, self)
-
-                        # ===== МАРКЕР, ЧТО ИГРА ЗАГРУЖЕНА =====  # 👈 ДОБАВЬТЕ!
-                        self.игра_загружена = True
-
-
-                        if not self.show_intro():
-                            return False
-
-                        выбранный_класс = self.show_class_selection()
-                        if выбранный_класс:
-                            self.apply_class(выбранный_класс)
-
-                            # ===== ДОБАВЛЯЕМ СТАРТОВЫЙ КВЕСТ ДЛЯ НОВОЙ ИГРЫ =====
-                            self.quest_system.добавить_квест(self.игрок, "основной_начало")
-                            print("📜 Добавлен стартовый квест (новая игра)")
-
-                            # ===== ВКЛЮЧАЕМ МУЗЫКУ ДЛЯ НАЧАЛЬНОЙ ЛОКАЦИИ =====
-                            if self.music.есть_музыка(self.текущая_локация):
-                                self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
-                            else:
-                                self.music.остановить_музыку()
-
-                            # 👇 ВЫХОДИМ ИЗ МЕНЮ (МУЗЫКА УЖЕ ОСТАНОВЛЕНА)
-                            return True
-                        else:
-                            return False
-
-                    elif load_rect.collidepoint(mouse_pos):
-                        print("📂 Нажата кнопка ЗАГРУЗИТЬ")
-                        saves_info = сохранение.list_saves()
-                        if not saves_info:
-                            print("❌ Нет сохранённой игры!")
-                            self.show_message("Нет сохранений!", duration=60)
-                            continue
-
-                        selected_slot = show_load_menu(self)
-                        print(f"🔍 selected_slot = {selected_slot}")
-                        if selected_slot:
-                            print(f"📂 Загружаем слот {selected_slot}")
-                            загруженный_игрок, загруженная_локация, chest_inventory = сохранение.загрузить_игру(
-                                selected_slot)
-                            if загруженный_игрок:
-                                # 👇 ОСТАНАВЛИВАЕМ МУЗЫКУ МЕНЮ
-                                self.music.остановить_музыку()
-
-                                self.игрок.update(загруженный_игрок)
-                                self.текущая_локация = загруженная_локация
-                                self.chest_inventory = chest_inventory
-
-                                # ===== МАРКЕР, ЧТО ИГРА ЗАГРУЖЕНА =====
-                                self.игра_загружена = True
-
-                                # ===== ВКЛЮЧАЕМ МУЗЫКУ ДЛЯ ТЕКУЩЕЙ ЛОКАЦИИ =====
-                                if self.music.есть_музыка(self.текущая_локация):
-                                    self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
-                                else:
-                                    self.music.остановить_музыку()
-
-                                # ===== ПРОВЕРЯЕМ КВЕСТЫ ПРИ ЗАГРУЗКЕ =====
-                                if not self.игрок.get("активные_квесты") and not self.игрок.get("завершенные_квесты"):
-                                    self.quest_system.добавить_квест(self.игрок, "основной_начало")
-                                    print("📜 Добавлен стартовый квест (загрузка)")
-
-                                self._пересчитать_пассивные_бонусы()
-                                self.inventory.update_max_health()
-                                print(f"✅ Загружена игра из слота {selected_slot}")
-
-                                # 👇 ВЫХОДИМ ИЗ МЕНЮ (МУЗЫКА УЖЕ ОСТАНОВЛЕНА)
-                                return True
-                        continue
-
-                    elif exit_rect.collidepoint(mouse_pos):
-                        print("🚪 Нажата кнопка ВЫХОД")
-                        if self.show_exit_confirmation():
-                            print("   ⚠️ Возвращаем None (выход из меню)")
-                            return None
-                        else:
-                            continue
-
-            # ===== ОТРИСОВКА (ТОЛЬКО ФОН) =====
-            self.screen.blit(bg, (0, 0))
-            pygame.display.flip()
-            clock.tick(FPS)
-
-        return None
 
 
     def show_message(self, text, duration=60):
