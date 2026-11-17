@@ -15,6 +15,8 @@ from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exi
 from pyvidplayer2 import Video
 from systems.video_manager import VideoManager
 
+from ui.crafting_ui import draw_craft, handle_craft_click
+
 from ui.inventory_ui import draw_inventory, handle_inventory_click
 # ===== МУЗЫКА =====
 from systems.audio import MusicManager
@@ -2453,7 +2455,7 @@ class Game:
                         elif self.режим == "квесты":  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ!
                             self.handle_quests_click(mouse_pos)
                         elif self.режим == "крафт":
-                            self.handle_craft_click(mouse_pos)
+                            handle_craft_click(self, mouse_pos)
                         elif self.режим == "карта":
                             self.handle_map_click(mouse_pos)
                         elif self.режим == "обучение":
@@ -2521,7 +2523,7 @@ class Game:
                 self.draw_quests()
 
             elif self.режим == "крафт":
-                self.draw_craft()
+                draw_craft(self)
 
             elif self.режим == "карта":
                 self.draw_map()
@@ -3236,41 +3238,6 @@ class Game:
             self.screen.blit(tip_button_text, (tip_button_rect.x + 12, tip_button_rect.y + 3))
             self.trade_buttons.append(("ask_tip", tip_button_rect))
 
-    def handle_craft_click(self, pos):
-        """Обработка кликов в верстаке"""
-
-        # Кнопка "Назад"
-        for action, rect in self.craft_buttons:
-            if action == "back" and rect.collidepoint(pos):
-                self.режим = "игра"
-                return
-            elif action == "scroll_up" and rect.collidepoint(pos):
-                self.craft_scroll = max(0, self.craft_scroll - 1)
-                return
-            elif action == "scroll_down" and rect.collidepoint(pos):
-                # Получаем рецепты для текущей категории
-                рецепты_категории = []
-                for recipe_name in self.craft_categories[self.craft_category]:
-                    if recipe_name in self.craft_recipes:
-                        рецепты_категории.append(recipe_name)
-
-                max_scroll = len(рецепты_категории) - 7
-                self.craft_scroll = min(max_scroll, self.craft_scroll + 1)
-                return
-
-        # Переключение категорий
-        if hasattr(self, 'category_buttons'):
-            for category, rect in self.category_buttons:
-                if rect.collidepoint(pos):
-                    self.craft_category = category
-                    self.craft_scroll = 0
-                    return
-
-        # Кнопки создания предметов
-        for название, рецепт, btn_rect in self.craft_items:
-            if btn_rect.collidepoint(pos):
-                self.craft_item(название, рецепт)
-                return
 
     def craft_item(self, название, рецепт):
         """
@@ -3473,210 +3440,6 @@ class Game:
                 btn_all_text = font_small.render("ВСЕ", True, WHITE)
             self.screen.blit(btn_all_text, (btn_all_rect.x + 10, btn_all_rect.y + 5))
             self.trade_items.append(("sell_all", предмет, btn_all_rect, цена_продажи, количество))
-
-    def draw_craft(self):
-        """Отрисовка окна верстака с категориями и прокруткой"""
-
-        self.craft_buttons = []
-        self.craft_items = []
-
-        # Категории рецептов
-        categories = {
-            "ОРУЖИЕ": ["лезвие", "призрачный меч"],
-            "БРОНЯ": ["кожаная броня", "кольчужная броня"],
-            "ЕДА": ["блины", "рыба", "зелье здоровья"],
-            "МАТЕРИАЛЫ": ["шестерёнка"]
-        }
-
-        # Если нет выбранной категории, выбираем первую
-        if not hasattr(self, 'craft_category'):
-            self.craft_category = list(categories.keys())[0]
-
-        # Параметры прокрутки
-        if not hasattr(self, 'craft_scroll'):
-            self.craft_scroll = 0
-
-        # Затемняем фон
-        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 200))
-        self.screen.blit(s, (0, 0))
-
-        # Рамка окна
-        craft_rect = pygame.Rect(100, 50, 1080, 650)
-        pygame.draw.rect(self.screen, DARK_BLUE, craft_rect)
-        pygame.draw.rect(self.screen, GOLD, craft_rect, 3)
-
-        # Заголовок
-        title = font_large.render("ВЕРСТАК", True, GOLD)
-        self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 70))
-
-        # Ресурсы игрока
-        y_res = 120
-        ресурсы_текст = font_medium.render("ТВОИ РЕСУРСЫ:", True, GOLD)
-        self.screen.blit(ресурсы_текст, (120, y_res))
-
-        # Подсчёт ресурсов
-        ресурсы = {}
-        for предмет in self.игрок["инвентарь"]:
-            if предмет in предметы.предметы and предметы.предметы[предмет]["тип"] == "ресурс":
-                ресурсы[предмет] = ресурсы.get(предмет, 0) + 1
-
-        # Отображаем ресурсы
-        if ресурсы:
-            ресурсы_список = []
-            for предмет, количество in ресурсы.items():
-                ресурсы_список.append(f"{предмет} x{количество}")
-            ресурсы_строка = " | ".join(ресурсы_список)
-
-            if len(ресурсы_строка) > 80:
-                ресурсы_строка = ресурсы_строка[:80] + "..."
-
-            res_display = font_small.render(ресурсы_строка, True, WHITE)
-            self.screen.blit(res_display, (120, y_res + 25))
-        else:
-            res_display = font_small.render("Нет ресурсов", True, GRAY)
-            self.screen.blit(res_display, (120, y_res + 25))
-
-        # Разделитель
-        pygame.draw.line(self.screen, GOLD, (120, 180), (1060, 180), 2)
-
-        # ===== КАТЕГОРИИ =====
-        cat_x = 120
-        cat_y = 190
-        cat_spacing = 120
-
-        self.category_buttons = []
-        for i, category in enumerate(categories.keys()):
-            cat_rect = pygame.Rect(cat_x + i * cat_spacing, cat_y, 110, 30)
-
-            # Подсветка выбранной категории
-            if category == self.craft_category:
-                pygame.draw.rect(self.screen, GOLD, cat_rect)
-                cat_text = font_small.render(category, True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, cat_rect)
-                pygame.draw.rect(self.screen, GOLD, cat_rect, 2)
-                cat_text = font_small.render(category, True, WHITE)
-
-            self.screen.blit(cat_text, (cat_rect.x + 5, cat_rect.y + 5))
-            self.category_buttons.append((category, cat_rect))
-
-        # ===== СПИСОК РЕЦЕПТОВ С ПРОКРУТКОЙ =====
-        # Заголовки колонок
-        name_header = font_small.render("РЕЦЕПТ", True, GOLD)
-        resources_header = font_small.render("НУЖНО", True, GOLD)
-
-        self.screen.blit(name_header, (120, 230))
-        self.screen.blit(resources_header, (450, 230))
-
-        # Получаем рецепты для выбранной категории
-        category_recipes = []
-        for recipe_name in categories[self.craft_category]:
-            if recipe_name in self.craft_recipes:
-                category_recipes.append((recipe_name, self.craft_recipes[recipe_name]))
-
-        # Параметры отображения
-        y_start = 260
-        item_height = 45
-        visible_items = 7  # Сколько рецептов видно одновременно
-
-        # Кнопки прокрутки
-        if len(category_recipes) > visible_items:
-            # Стрелка вверх
-            up_rect = pygame.Rect(1000, 230, 30, 30)
-            if up_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, up_rect)
-                up_text = font_medium.render("▲", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, up_rect)
-                pygame.draw.rect(self.screen, GOLD, up_rect, 2)
-                up_text = font_medium.render("▲", True, WHITE)
-            self.screen.blit(up_text, (1005, 235))
-            self.craft_buttons.append(("scroll_up", up_rect))
-
-            # Стрелка вниз
-            down_rect = pygame.Rect(1000, 570, 30, 30)
-            if down_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, down_rect)
-                down_text = font_medium.render("▼", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, down_rect)
-                pygame.draw.rect(self.screen, GOLD, down_rect, 2)
-                down_text = font_medium.render("▼", True, WHITE)
-            self.screen.blit(down_text, (1005, 575))
-            self.craft_buttons.append(("scroll_down", down_rect))
-
-        # Отображаем видимые рецепты
-        start_index = self.craft_scroll
-        end_index = min(start_index + visible_items, len(category_recipes))
-
-        y = y_start
-        for i in range(start_index, end_index):
-            название, рецепт = category_recipes[i]
-
-            # Группируем одинаковые ресурсы
-            нужные_ресурсы = {}
-            for ресурс in рецепт["ресурсы"]:
-                нужные_ресурсы[ресурс] = нужные_ресурсы.get(ресурс, 0) + 1
-
-            # Проверяем, есть ли все ресурсы
-            есть_все = True
-            for ресурс, нужно in нужные_ресурсы.items():
-                if ресурсы.get(ресурс, 0) < нужно:
-                    есть_все = False
-                    break
-
-            # Подсветка при наведении
-            item_rect = pygame.Rect(120, y - 3, 800, 35)
-            if item_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, DARK_RED, item_rect)
-
-            # Название рецепта
-            name_text = font_small.render(название, True, WHITE)
-            self.screen.blit(name_text, (120, y))
-
-            # Нужные ресурсы (группированные)
-            ресурсы_текст = []
-            for ресурс, нужно in нужные_ресурсы.items():
-                if нужно > 1:
-                    ресурсы_текст.append(f"{ресурс} x{нужно}")
-                else:
-                    ресурсы_текст.append(ресурс)
-
-            res_text = font_small.render(", ".join(ресурсы_текст), True, WHITE)
-            self.screen.blit(res_text, (450, y + 2))
-
-            # Индикатор наличия ресурсов
-            if есть_все:
-                indicator = "+"
-            else:
-                indicator = "-"
-            ind_text = font_small.render(indicator, True, WHITE)
-            self.screen.blit(ind_text, (920, y))
-
-            # Кнопка создания (только если есть ресурсы)
-            if есть_все:
-                btn_rect = pygame.Rect(960, y - 3, 100, 30)
-                if btn_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(self.screen, GOLD, btn_rect)
-                    btn_text = font_small.render("СОЗДАТЬ", True, BLACK)
-                else:
-                    pygame.draw.rect(self.screen, DARK_RED, btn_rect)
-                    pygame.draw.rect(self.screen, GOLD, btn_rect, 1)
-                    btn_text = font_small.render("СОЗДАТЬ", True, WHITE)
-                self.screen.blit(btn_text, (btn_rect.x + 10, btn_rect.y + 5))
-                self.craft_items.append((название, рецепт, btn_rect))
-
-            y += item_height
-
-        # Кнопка "Назад"
-        back_rect = pygame.Rect(WIDTH // 2 - 100, 620, 200, 50)
-        pygame.draw.rect(self.screen, DARK_RED, back_rect)
-        pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-        back_text = font_medium.render("НАЗАД", True, WHITE)
-        self.screen.blit(back_text, (WIDTH // 2 - back_text.get_width() // 2, 635))
-        self.craft_buttons.append(("back", back_rect))
-
 
 
     def draw_health_bar(self, x, y, width, height, current, maximum):
