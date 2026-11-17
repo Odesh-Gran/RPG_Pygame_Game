@@ -6,6 +6,7 @@ import sys
 
 from ui.battle_ui import draw_battle
 
+from ui.trade_ui import draw_quest_trade_menu, handle_trade_click
 from systems.dungeon_controller import DungeonController
 
 from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
@@ -938,97 +939,6 @@ class Game:
         for предмет, данные in данные_торговца.get("товары", {}).items():
             self.trade_goods[предмет] = {"цена": данные["цена"]}
 
-    def draw_quest_trade_menu(self):
-        """Рисует меню выбора: Квесты или Торговля"""
-
-        # Анимация появления
-        if not hasattr(self, 'quest_trade_animation_progress'):
-            self.quest_trade_animation_progress = 0
-
-        if self.quest_trade_animation_progress < 1:
-            self.quest_trade_animation_progress += 0.08
-            if self.quest_trade_animation_progress > 1:
-                self.quest_trade_animation_progress = 1
-
-        # Затемнение фона
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
-        self.screen.blit(overlay, (0, 0))
-
-        # Параметры панели
-        panel_width = 500
-        panel_height = 350
-        panel_x = WIDTH // 2 - panel_width // 2
-        panel_y = HEIGHT // 2 - panel_height // 2
-
-        # Фон панели
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-        pygame.draw.rect(self.screen, DARK_BLUE, panel_rect)
-        pygame.draw.rect(self.screen, GOLD, panel_rect, 3)
-
-        # Заголовок
-        title = font_large.render("СТРАННИК", True, GOLD)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 25))
-
-        # Приветствие
-        greeting = font_small.render('"Чем могу помочь?"', True, (200, 200, 180))
-        greeting_x = panel_x + panel_width // 2 - greeting.get_width() // 2
-        self.screen.blit(greeting, (greeting_x, panel_y + 75))
-
-        # Разделитель
-        pygame.draw.line(self.screen, GOLD,
-                         (panel_x + 30, panel_y + 110),
-                         (panel_x + panel_width - 30, panel_y + 110), 2)
-
-        mouse_pos = pygame.mouse.get_pos()
-
-        # ===== КНОПКА "КВЕСТЫ" =====
-        quest_rect = pygame.Rect(panel_x + 60, panel_y + 135, 380, 60)
-        if quest_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, quest_rect)
-            quest_text = font_medium.render("📜 КВЕСТЫ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, quest_rect)
-            pygame.draw.rect(self.screen, GOLD, quest_rect, 2)
-            quest_text = font_medium.render("📜 КВЕСТЫ", True, WHITE)
-
-        quest_text_x = quest_rect.x + quest_rect.width // 2 - quest_text.get_width() // 2
-        quest_text_y = quest_rect.y + quest_rect.height // 2 - quest_text.get_height() // 2
-        self.screen.blit(quest_text, (quest_text_x, quest_text_y))
-        self.quest_trade_buttons = [("quests", quest_rect)]
-
-        # ===== КНОПКА "ТОРГОВЛЯ" =====
-        trade_rect = pygame.Rect(panel_x + 60, panel_y + 215, 380, 60)
-        if trade_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, trade_rect)
-            trade_text = font_medium.render("💰 ТОРГОВЛЯ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, trade_rect)
-            pygame.draw.rect(self.screen, GOLD, trade_rect, 2)
-            trade_text = font_medium.render("💰 ТОРГОВЛЯ", True, WHITE)
-
-        trade_text_x = trade_rect.x + trade_rect.width // 2 - trade_text.get_width() // 2
-        trade_text_y = trade_rect.y + trade_rect.height // 2 - trade_text.get_height() // 2
-        self.screen.blit(trade_text, (trade_text_x, trade_text_y))
-        self.quest_trade_buttons.append(("trade", trade_rect))
-
-        # ===== КНОПКА "НАЗАД" =====
-        back_rect = pygame.Rect(panel_x + panel_width // 2 - 70, panel_y + panel_height - 50, 140, 35)
-        if back_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, back_rect)
-            back_text = font_medium.render("НАЗАД", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, back_rect)
-            pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-            back_text = font_medium.render("НАЗАД", True, WHITE)
-
-        back_text_x = back_rect.x + back_rect.width // 2 - back_text.get_width() // 2
-        back_text_y = back_rect.y + back_rect.height // 2 - back_text.get_height() // 2
-        self.screen.blit(back_text, (back_text_x, back_text_y))
-        self.quest_trade_buttons.append(("back", back_rect))
-
-        self.quest_trade_back = back_rect
 
     def draw_quests(self):
         """Отображает окно квестов"""
@@ -2537,7 +2447,7 @@ class Game:
                         elif self.режим == "бой":
                             self.handle_battle_click(mouse_pos)
                         elif self.режим == "торговля":
-                            self.handle_trade_click(mouse_pos)
+                            handle_trade_click(self, mouse_pos)
                         elif self.режим == "quest_trade_menu":  # 👈 ЭТОЙ СТРОКИ НЕТ!
                             self.handle_quest_trade_click(mouse_pos)
                         elif self.режим == "квесты":  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ!
@@ -2605,7 +2515,7 @@ class Game:
                 self.draw_trade()
 
             elif self.режим == "quest_trade_menu":  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ!
-                self.draw_quest_trade_menu()
+                draw_quest_trade_menu(self)
 
             elif self.режим == "квесты":
                 self.draw_quests()
@@ -3325,81 +3235,6 @@ class Game:
                 tip_button_text = font_tiny.render("ЕЩЁ", True, WHITE)
             self.screen.blit(tip_button_text, (tip_button_rect.x + 12, tip_button_rect.y + 3))
             self.trade_buttons.append(("ask_tip", tip_button_rect))
-
-    def handle_trade_click(self, pos):
-        """Обработка кликов в окне торговца"""
-
-        if not hasattr(self, 'trade_buttons'):
-            return
-
-        # Инициализируем trade_scroll, если его нет
-        if not hasattr(self, 'trade_scroll'):
-            self.trade_scroll = 0
-
-        for action, *data in self.trade_buttons:
-            if action == "back" and data[0].collidepoint(pos):
-                self.режим = "игра"
-                if hasattr(self, 'trade_buttons'):
-                    delattr(self, 'trade_buttons')
-                if hasattr(self, 'trade_scroll'):
-                    delattr(self, 'trade_scroll')
-                return
-
-            elif action == "buy_mode" and data[0].collidepoint(pos):
-                self.trade_mode = "buy"
-                self.trade_scroll = 0
-                return
-
-            elif action == "sell_mode" and data[0].collidepoint(pos):
-                self.trade_mode = "sell"
-                self.trade_scroll = 0
-                return
-
-            elif action == "ask_tip" and data[0].collidepoint(pos):
-                # Меняем совет на новый случайный
-                import торговец
-                import random
-                торговец_данные = торговец.торговцы.get(self.trade_location, {})
-                советы = торговец_данные.get("советы", [])
-                if советы:
-                    if len(советы) > 1:
-                        новый_совет = random.choice(советы)
-                        if hasattr(self, 'current_tip') and self.current_tip == новый_совет:
-                            другие_советы = [с for с in советы if с != self.current_tip]
-                            if другие_советы:
-                                новый_совет = random.choice(другие_советы)
-                        self.current_tip = новый_совет
-                    else:
-                        self.current_tip = советы[0]
-                    self.add_to_log(f" {self.trader_name} дал новый совет")
-                return
-
-        # Обработка покупки/продажи
-        if hasattr(self, 'trade_items'):
-            for item_data in self.trade_items:
-                if item_data[0] == "buy_1":
-                    action, предмет, rect = item_data
-                    if rect.collidepoint(pos):
-                        self.trade_buy_item(предмет, 1)
-                        return
-
-                elif item_data[0] == "buy_5":  # ← новая кнопка
-                    action, предмет, rect = item_data
-                    if rect.collidepoint(pos):
-                        self.trade_buy_item(предмет, 5)
-                        return
-
-                elif item_data[0] == "sell_1":
-                    action, предмет, rect, цена = item_data
-                    if rect.collidepoint(pos):
-                        self.trade_sell_item(предмет, 1, цена)
-                        return
-
-                elif item_data[0] == "sell_all":
-                    action, предмет, rect, цена, количество = item_data
-                    if rect.collidepoint(pos):
-                        self.trade_sell_item(предмет, количество, цена)
-                        return
 
     def handle_craft_click(self, pos):
         """Обработка кликов в верстаке"""
