@@ -4,36 +4,31 @@ import math
 import random
 import sys
 
-from ui.battle_ui import draw_battle
-from ui.main_menu import show_main_menu
-from ui.map_ui import draw_map, handle_map_click
-
-from ui.hud import draw_status, draw_location, draw_actions
-
-from ui.chest_ui import draw_chest, handle_chest_click
-from ui.trade_ui import draw_quest_trade_menu, handle_trade_click, draw_trade
-from systems.dungeon_controller import DungeonController
-
-from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
-from systems.video_manager import VideoManager
 
+# ===== UI =====
+from ui.battle_ui import draw_battle
+from ui.main_menu import show_main_menu
+from ui.map_ui import draw_map, handle_map_click
+from ui.sprites import load_player_sprite, load_enemy_sprite_by_name
+from ui.battle_intro import start_battle_animation, update_battle_animation, draw_battle_start_animation
+from ui.hud import draw_status, draw_location, draw_actions
+from ui.chest_ui import draw_chest, handle_chest_click
+from ui.trade_ui import draw_quest_trade_menu, handle_trade_click, draw_trade
+from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
 from ui.crafting_ui import draw_craft, handle_craft_click
-
 from ui.inventory_ui import draw_inventory, handle_inventory_click
-# ===== МУЗЫКА =====
-from systems.audio import MusicManager
-# ===== КВЕСТЫ =====
 from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
+from ui.skills_menu import draw_skills_menu
+from ui.login_screen import LoginScreen
+
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
 from entities.player import потратить_ресурсы, проверить_голод
 from entities import locations as локации
 from entities import items as предметы
-
-from ui.skills_menu import draw_skills_menu
 
 # ===== ИГРОВЫЕ СИСТЕМЫ (systems) =====
 from systems.battle_system import BattleSystem
@@ -44,11 +39,13 @@ from systems import merchant as торговец
 from systems import barriers as барьеры
 from systems import time_system as время
 from systems import exploration
+from systems.dungeon_controller import DungeonController
+from systems.video_manager import VideoManager
+from systems.audio import MusicManager
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
 from loaders import save_manager as сохранение
-from ui.login_screen import LoginScreen
 
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 # ===== ИМПОРТ НАСТРОЕК =====
@@ -227,7 +224,7 @@ class Game:
         self.player_size = 200
         self.player_pos = [WIDTH // 5 - self.player_size // 2, HEIGHT // 1.5 - self.player_size // 2]
         self.player_sprite = None
-        self.load_player_sprite()
+        load_player_sprite(self)
 
 
         # ========== ВРАГ ==========
@@ -1159,7 +1156,7 @@ class Game:
             print(f"   → Навык НЕ пассивный (тип: {skill['тип']})")
 
         # Обновляем интерфейс
-        self.draw_status()
+        draw_status(self)
         pygame.display.flip()
 
     def update_max_health(self):
@@ -1251,7 +1248,7 @@ class Game:
 
                     # ===== ЗАПУСКАЕМ ШКАЛУ ПРОГРЕССА =====
                     self.запустить_шкалу_обыска()
-                    self.draw_status()
+                    draw_status(self)
                     pygame.display.flip()
                     return  # ← ВЫХОДИМ, ЧТОБЫ НЕ ВЫПОЛНЯТЬ ОБЫСК СРАЗУ
 
@@ -1836,7 +1833,7 @@ class Game:
             # ===== ОБНОВЛЯЕМ АНИМАЦИЮ ПЕРЕХОДА =====
             self.update_transition()
             self.video_manager.update_transition_video(self)
-            self.update_battle_animation()
+            update_battle_animation(self)
 
             # ========== ОТРИСОВКА ==========
             if self.режим == "игра":
@@ -1844,7 +1841,7 @@ class Game:
                 draw_status(self)
                 draw_actions(self)
                 self.draw_log_panel()
-                self.draw_battle_start_animation()
+                draw_battle_start_animation(self)
                 self.draw_loot_panel()
                 draw_quest_tracker(self)
                 draw_daily_quest_tracker(self)
@@ -1858,7 +1855,7 @@ class Game:
 
             elif self.режим == "бой":
                 draw_battle(self)
-                self.draw_battle_start_animation()
+                draw_battle_start_animation(self)
 
             elif self.режим == "торговля":
                 draw_trade(self)
@@ -2911,282 +2908,6 @@ class Game:
         text_y = rect.y + rect.height // 2 - button_text.get_height() // 2
         self.screen.blit(button_text, (text_x, text_y))
 
-    def load_player_sprite(self):
-        """Загружает спрайт персонажа"""
-        try:
-            self.player_sprite = pygame.image.load("assets/player/idle.png").convert_alpha()
-            self.player_sprite = pygame.transform.scale(self.player_sprite, (self.player_size, self.player_size))
-            print("✅ Спрайт персонажа загружен")
-        except:
-            print("❌ Не удалось загрузить спрайт, создаю заглушку")
-            self.create_player_placeholder()
-
-    def create_player_placeholder(self):
-        """Создаёт простой спрайт-заглушку для персонажа"""
-
-        self.player_sprite = pygame.Surface((self.player_size, self.player_size), pygame.SRCALPHA)
-
-        # Тело (синий квадрат) - отступы пропорциональные
-        padding = self.player_size // 8  # 8 пикселей для 64px
-        body_size = self.player_size - padding * 2
-
-        pygame.draw.rect(self.player_sprite, DARK_BLUE, (padding, padding, body_size, body_size))
-
-        # Глаза
-        eye_size = self.player_size // 8
-        eye_y = self.player_size // 3
-        left_eye_x = self.player_size // 3
-        right_eye_x = self.player_size * 2 // 3
-
-        pygame.draw.circle(self.player_sprite, WHITE, (left_eye_x, eye_y), eye_size)
-        pygame.draw.circle(self.player_sprite, WHITE, (right_eye_x, eye_y), eye_size)
-        pygame.draw.circle(self.player_sprite, BLACK, (left_eye_x, eye_y), eye_size // 2)
-        pygame.draw.circle(self.player_sprite, BLACK, (right_eye_x, eye_y), eye_size // 2)
-
-        # Рот (улыбка)
-        mouth_y = self.player_size * 2 // 3
-        mouth_width = self.player_size // 2
-        mouth_height = self.player_size // 4
-        pygame.draw.arc(self.player_sprite, WHITE,
-                        (self.player_size // 4, mouth_y, mouth_width, mouth_height),
-                        0, 3.14, self.player_size // 16)
-
-        # Рамка
-        pygame.draw.rect(self.player_sprite, GOLD, (0, 0, self.player_size, self.player_size), 3)
-
-        print(f"🎨 Создан спрайт-заглушка {self.player_size}x{self.player_size}")
-
-    def load_enemy_sprite_by_name(self, enemy_name):
-        """Загружает спрайт для конкретного врага"""
-        from entities import enemies as враги
-
-        enemy_data = враги.враги.get(enemy_name)
-        if not enemy_data:
-            print(f"❌ Враг {enemy_name} не найден!")
-            return self.create_enemy_placeholder()
-
-        sprite_path = enemy_data.get("спрайт")
-        if not sprite_path:
-            print(f"⚠️ Для врага {enemy_name} не указан спрайт!")
-            return self.create_enemy_placeholder()
-
-        try:
-            sprite = pygame.image.load(sprite_path).convert_alpha()
-            sprite = pygame.transform.scale(sprite, (self.enemy_size, self.enemy_size))
-            print(f"✅ Загружен спрайт для {enemy_name}")
-            return sprite
-        except Exception as e:
-            print(f"❌ Ошибка загрузки спрайта {enemy_name}: {e}")
-            return self.create_enemy_placeholder()
-
-    def create_enemy_placeholder(self):
-        """Создаёт простой спрайт-заглушку для врага"""
-        self.enemy_sprite = pygame.Surface((self.enemy_size, self.enemy_size), pygame.SRCALPHA)
-
-        # Тело (красный квадрат)
-        padding = self.enemy_size // 8
-        body_size = self.enemy_size - padding * 2
-        pygame.draw.rect(self.enemy_sprite, DARK_RED, (padding, padding, body_size, body_size))
-
-        # Глаза (злые)
-        eye_size = self.enemy_size // 8
-        eye_y = self.enemy_size // 3
-        left_eye_x = self.enemy_size // 3
-        right_eye_x = self.enemy_size * 2 // 3
-
-        # Белки глаз
-        pygame.draw.circle(self.enemy_sprite, WHITE, (left_eye_x, eye_y), eye_size)
-        pygame.draw.circle(self.enemy_sprite, WHITE, (right_eye_x, eye_y), eye_size)
-
-        # Зрачки (красные, смотрят на игрока)
-        pygame.draw.circle(self.enemy_sprite, BLOOD_RED, (left_eye_x, eye_y), eye_size // 2)
-        pygame.draw.circle(self.enemy_sprite, BLOOD_RED, (right_eye_x, eye_y), eye_size // 2)
-
-        # Брови (злые)
-        brow_y = eye_y - eye_size // 2
-        pygame.draw.line(self.enemy_sprite, BLACK,
-                         (left_eye_x - eye_size, brow_y),
-                         (left_eye_x + eye_size, brow_y - eye_size // 2), 3)
-        pygame.draw.line(self.enemy_sprite, BLACK,
-                         (right_eye_x + eye_size, brow_y),
-                         (right_eye_x - eye_size, brow_y - eye_size // 2), 3)
-
-        # Рот (злой)
-        mouth_y = self.enemy_size * 2 // 3
-        mouth_width = self.enemy_size // 2
-        mouth_height = self.enemy_size // 4
-        pygame.draw.arc(self.enemy_sprite, BLOOD_RED,
-                        (self.enemy_size // 4, mouth_y, mouth_width, mouth_height),
-                        3.14, 6.28, self.enemy_size // 16)
-
-        # Рамка (красная)
-        pygame.draw.rect(self.enemy_sprite, BLOOD_RED, (0, 0, self.enemy_size, self.enemy_size), 3)
-
-        print(f"🎨 Создан спрайт-заглушка врага {self.enemy_size}x{self.enemy_size}")
-
-
-    def start_battle_animation(self):
-        """Запускает анимацию начала боя"""
-        self.battle_start_animation = True
-        self.battle_start_timer = 45  # длительность анимации в кадрах (0.5 сек при 60 FPS)
-        self.battle_start_alpha = 0
-        self.battle_start_scale = 0.3
-        print("🎬 Анимация начала боя запущена!")
-
-    def update_battle_animation(self):
-        """Обновляет анимацию начала боя"""
-        if not self.battle_start_animation:
-            return
-
-        # Уменьшаем таймер
-        self.battle_start_timer -= 1
-
-        # Рассчитываем параметры анимации (более плавно)
-        total_frames = 45  # общая длительность
-        progress = 1 - (self.battle_start_timer / total_frames)  # от 0 до 1
-
-        if progress < 0.4:
-            # Первая фаза (0-40%): нарастание
-            phase = progress / 0.4  # от 0 до 1
-            self.battle_start_alpha = int(255 * phase)
-            self.battle_start_scale = 0.3 + (0.7 * phase)
-        elif progress < 0.7:
-            # Вторая фаза (40-70%): максимальная интенсивность
-            self.battle_start_alpha = 255
-            self.battle_start_scale = 1.0
-        else:
-            # Третья фаза (70-100%): затухание
-            phase = (progress - 0.7) / 0.3  # от 0 до 1
-            self.battle_start_alpha = int(255 * (1 - phase))
-            self.battle_start_scale = 1.0 - (0.2 * phase)
-
-        # Завершаем анимацию
-        if self.battle_start_timer <= 0:
-            self.battle_start_animation = False
-            print("✨ Анимация начала боя завершена!")
-
-    def draw_battle_start_animation(self):
-        """Рисует анимацию начала боя"""
-        if not self.battle_start_animation:
-            return
-
-        # Создаём поверхность для анимации
-        animation_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-
-        # Эффект 1: Вспышка по центру (более плавная)
-        flash_radius = int(200 * self.battle_start_scale)  # увеличен максимальный радиус
-        flash_center = (WIDTH // 2, HEIGHT // 2)
-
-        # Рисуем несколько кругов для более объёмной вспышки
-        for i in range(4):
-            radius = flash_radius - i * 25
-            if radius > 0:
-                alpha = min(200, self.battle_start_alpha // (i + 1))
-                color = (255, 215, 0, alpha)
-                pygame.draw.circle(animation_surface, color, flash_center, radius)
-
-        # Эффект 2: Текст "БОЙ!" с анимацией (появляется медленнее)
-        if self.battle_start_timer > 25:  # показываем дольше
-            font_size = int(72 * self.battle_start_scale)
-            try:
-                battle_font = pygame.font.Font(None, font_size)
-            except:
-                battle_font = font_large
-
-            # Создаём текст с эффектом свечения
-            battle_text = battle_font.render("БОЙ!", True, (255, 215, 0))
-
-            # Несколько теней для эффекта объёма
-            for offset in [(3, 3), (2, 2), (1, 1)]:
-                shadow_text = battle_font.render("БОЙ!", True, (100, 50, 0))
-                shadow_rect = shadow_text.get_rect(center=flash_center)
-                shadow_rect.x += offset[0]
-                shadow_rect.y += offset[1]
-                shadow_rect_alpha = self.battle_start_alpha // 2
-                shadow_surface = pygame.Surface(shadow_rect.size, pygame.SRCALPHA)
-                shadow_surface.blit(shadow_text, (0, 0))
-                shadow_surface.set_alpha(shadow_rect_alpha)
-                animation_surface.blit(shadow_surface, shadow_rect)
-
-            # Основной текст
-            text_rect = battle_text.get_rect(center=flash_center)
-            text_surface = pygame.Surface(text_rect.size, pygame.SRCALPHA)
-            text_surface.blit(battle_text, (0, 0))
-            text_surface.set_alpha(self.battle_start_alpha)
-            animation_surface.blit(text_surface, text_rect)
-
-        # Эффект 3: Искры по краям экрана (больше искр, медленнее)
-        if self.battle_start_timer > 15 and self.battle_start_alpha > 0:
-            spark_count = int(30 * self.battle_start_scale)  # больше искр
-            for _ in range(spark_count):
-                x = random.randint(0, WIDTH)
-                y = random.randint(0, HEIGHT)
-                spark_size = random.randint(2, 6)
-
-                # ИСПРАВЛЕНО: проверяем диапазон для альфы
-                if self.battle_start_alpha > 50:
-                    spark_alpha = random.randint(50, self.battle_start_alpha)
-                elif self.battle_start_alpha > 1:
-                    spark_alpha = random.randint(1, self.battle_start_alpha)
-                else:
-                    spark_alpha = 1
-
-                # Разные цвета искр
-                color_choice = random.choice([
-                    (255, 215, 0, spark_alpha),  # золотой
-                    (255, 180, 0, spark_alpha),  # оранжевый
-                    (255, 100, 0, spark_alpha)  # красноватый
-                ])
-                pygame.draw.circle(animation_surface, color_choice, (x, y), spark_size)
-
-        # Эффект 4: Вращающиеся линии вокруг карт (медленнее)
-        if self.battle_start_timer > 20 and self.battle_start_alpha > 0:
-            # Медленное вращение
-            angle = pygame.time.get_ticks() * 0.005  # было 0.01, теперь медленнее
-
-            # Позиции карт (игрок слева вверху, враг справа внизу)
-            card_positions = [
-                (80, 80),  # карта игрока
-                (WIDTH - 430, HEIGHT - 530)  # карта врага
-            ]
-
-            for card in card_positions:
-                cx, cy = card[0] + 175, card[1] + 225
-
-                # Больше лучей для эффектности
-                for i in range(12):  # было 8, теперь 12
-                    rad = angle + (i * 3.14 / 6)  # чаще лучи
-                    x1 = cx + int(220 * math.cos(rad)) * self.battle_start_scale
-                    y1 = cy + int(220 * math.sin(rad)) * self.battle_start_scale
-                    x2 = cx + int(190 * math.cos(rad + 0.6)) * self.battle_start_scale
-                    y2 = cy + int(190 * math.sin(rad + 0.6)) * self.battle_start_scale
-
-                    alpha = min(200, int(self.battle_start_alpha / 1.5))
-                    line_width = max(1, int(3 * self.battle_start_scale))
-                    pygame.draw.line(animation_surface, (255, 215, 0, alpha), (x1, y1), (x2, y2), line_width)
-
-        # Эффект 5: Добавляем парящие частицы (новый эффект)
-        if self.battle_start_timer > 10 and self.battle_start_alpha > 50:
-            particle_count = int(15 * self.battle_start_scale)
-            for _ in range(particle_count):
-                x = random.randint(0, WIDTH)
-                y = random.randint(0, HEIGHT)
-                size = random.randint(1, 3)
-
-                # ИСПРАВЛЕНО: проверяем диапазон для альфы
-                max_alpha = self.battle_start_alpha // 2
-                if max_alpha > 30:
-                    alpha = random.randint(30, max_alpha)
-                elif max_alpha > 1:
-                    alpha = random.randint(1, max_alpha)
-                else:
-                    alpha = 1
-
-                color = (255, 200, 100, alpha)
-                pygame.draw.circle(animation_surface, color, (x, y), size)
-
-        # Накладываем анимацию на экран
-        self.screen.blit(animation_surface, (0, 0))
 
     def start_battle(self, враг_имя):
         """Начинает бой с врагом"""
@@ -3208,7 +2929,7 @@ class Game:
 
         self.add_to_log
 
-        self.enemy_sprite = self.load_enemy_sprite_by_name(враг_имя)
+        self.enemy_sprite = load_enemy_sprite_by_name(self, враг_имя)
 
         # Если мы в данже — запоминаем это
         if hasattr(self, 'in_dungeon') and self.in_dungeon:
@@ -3225,7 +2946,7 @@ class Game:
         self.battle_log = battle_data["battle_log"]
 
         # Запускаем анимацию
-        self.start_battle_animation()
+        start_battle_animation(self)
         pygame.time.wait(200)
         время.пройти_время(2)
 
