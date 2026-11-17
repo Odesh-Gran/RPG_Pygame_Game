@@ -6,6 +6,7 @@ import sys
 
 from ui.battle_ui import draw_battle
 
+from ui.chest_ui import draw_chest, handle_chest_click
 from ui.trade_ui import draw_quest_trade_menu, handle_trade_click
 from systems.dungeon_controller import DungeonController
 
@@ -1872,135 +1873,6 @@ class Game:
         print(f"💙 Мана:     {self.игрок['мана']} / {self.игрок['макс_мана']}")
         print(f"📅 День отдыха: {self.last_rest_day}")
 
-    def draw_chest(self):
-        """Отрисовка окна сундука для хранения предметов"""
-
-        # ===== ПРОВЕРКА: если сундук ещё не создан, создаём =====
-        if not hasattr(self, 'chest_inventory'):
-            self.chest_inventory = []
-
-        # Затемняем фон
-        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 200))
-        self.screen.blit(s, (0, 0))
-
-        # Рамка окна
-        chest_rect = pygame.Rect(150, 60, 980, 600)
-        pygame.draw.rect(self.screen, DARK_BLUE, chest_rect)
-        pygame.draw.rect(self.screen, GOLD, chest_rect, 3)
-
-        # Заголовок
-        title = font_large.render("СУНДУК", True, GOLD)
-        self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 80))
-
-        # Левая колонка — инвентарь игрока
-        inv_title = font_medium.render("ИНВЕНТАРЬ", True, GOLD)
-        self.screen.blit(inv_title, (200, 130))
-
-        # Правая колонка — сундук
-        chest_title = font_medium.render("СУНДУК", True, GOLD)
-        self.screen.blit(chest_title, (700, 130))
-
-        # Подсчёт предметов
-        инвентарь_словарь = {}
-        for предмет in self.игрок["инвентарь"]:
-            инвентарь_словарь[предмет] = инвентарь_словарь.get(предмет, 0) + 1
-
-        сундук_словарь = {}
-        for предмет in self.chest_inventory:
-            сундук_словарь[предмет] = сундук_словарь.get(предмет, 0) + 1
-
-        # Отображаем предметы инвентаря (слева)
-        y = 170
-        self.chest_inventory_items = []  # для кликов
-
-        for предмет, количество in инвентарь_словарь.items():
-            # Название
-            name_text = font_small.render(предмет, True, WHITE)
-            self.screen.blit(name_text, (200, y))
-
-            # Количество
-            count_text = font_small.render(f"x{количество}", True, GOLD)
-            self.screen.blit(count_text, (350, y))
-
-            # Кнопка "В сундук"
-            btn_rect = pygame.Rect(450, y - 3, 80, 25)
-            if btn_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, btn_rect)
-                btn_text = font_small.render(">", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, btn_rect)
-                pygame.draw.rect(self.screen, GOLD, btn_rect, 1)
-                btn_text = font_small.render(">", True, WHITE)
-            self.screen.blit(btn_text, (btn_rect.x + 30, btn_rect.y + 3))
-
-            self.chest_inventory_items.append(("to_chest", предмет, btn_rect))
-            y += 35
-
-        # Отображаем предметы сундука (справа)
-        y = 170
-        for предмет, количество in сундук_словарь.items():
-            # Название
-            name_text = font_small.render(предмет, True, WHITE)
-            self.screen.blit(name_text, (700, y))
-
-            # Количество
-            count_text = font_small.render(f"x{количество}", True, GOLD)
-            self.screen.blit(count_text, (850, y))
-
-            # Кнопка "В инвентарь"
-            btn_rect = pygame.Rect(950, y - 3, 80, 25)
-            if btn_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, btn_rect)
-                btn_text = font_small.render("<", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, btn_rect)
-                pygame.draw.rect(self.screen, GOLD, btn_rect, 1)
-                btn_text = font_small.render("<", True, WHITE)
-            self.screen.blit(btn_text, (btn_rect.x + 30, btn_rect.y + 3))
-
-            self.chest_inventory_items.append(("to_inventory", предмет, btn_rect))
-            y += 35
-
-        # Кнопка "Назад"
-        back_rect = pygame.Rect(WIDTH // 2 - 100, 620, 200, 50)
-        pygame.draw.rect(self.screen, DARK_RED, back_rect)
-        pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-        back_text = font_medium.render("НАЗАД", True, WHITE)
-        self.screen.blit(back_text, (WIDTH // 2 - back_text.get_width() // 2, 635))
-        self.chest_back = back_rect
-
-    def handle_chest_click(self, pos):
-        """Обработка кликов в окне сундука"""
-
-        if not hasattr(self, 'chest_inventory'):
-            self.chest_inventory = []
-
-        # Кнопка "Назад"
-        if hasattr(self, 'chest_back') and self.chest_back.collidepoint(pos):
-            self.режим = "игра"
-            return
-
-        # Перемещение предметов
-        if hasattr(self, 'chest_inventory_items'):
-            for action, предмет, rect in self.chest_inventory_items:
-                if rect.collidepoint(pos):
-                    if action == "to_chest":
-                        # Перемещаем из инвентаря в сундук
-                        if self.inventory.has_item(предмет):
-                            self.inventory.remove_item(предмет)
-                            self.chest_inventory.append(предмет)
-                            self.add_to_log(f"📦 {предмет} перемещён в сундук")
-
-                    elif action == "to_inventory":
-                        # Перемещаем из сундука в инвентарь
-                        if предмет in self.chest_inventory:
-                            self.chest_inventory.remove(предмет)
-                            self.inventory.add_item(предмет)
-                            self.add_to_log(f"📦 {предмет} взят из сундука")
-
-                    return
-
     def open_chest(self):
         """Открыть сундук — показать окно хранилища"""
         self.режим = "сундук"
@@ -2461,7 +2333,7 @@ class Game:
                         elif self.режим == "обучение":
                             self.handle_skills_click(mouse_pos)
                         elif self.режим == "сундук":
-                            self.handle_chest_click(mouse_pos)
+                            handle_chest_click(self, mouse_pos)
 
                 # --- Прокрутка колесиком ---
                 elif event.type == pygame.MOUSEWHEEL:
@@ -2529,7 +2401,7 @@ class Game:
                 self.draw_map()
 
             elif self.режим == "сундук":
-                self.draw_chest()
+                draw_chest(self)
 
             elif self.режим == "эксплорейшн":
                 if hasattr(self, 'exploration_zone'):
