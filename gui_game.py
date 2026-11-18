@@ -38,6 +38,7 @@ from ui.skills_menu import draw_skills_menu
 from ui.login_screen import LoginScreen
 from ui.widgets import draw_item_tooltip
 from ui.widgets import draw_health_bar, draw_mana_bar
+from ui.battle_ui import draw_battle, draw_skill_buttons
 
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
@@ -59,6 +60,7 @@ from systems.dungeon_controller import DungeonController
 from systems.video_manager import VideoManager
 from systems.audio import MusicManager
 from systems.crafting import craft_item
+from systems.skills_system import upgrade_skill, learn_skill
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
@@ -541,69 +543,6 @@ class Game:
         self.craft_items = []
         self.craft_buttons = []
 
-
-    def learn_skill(self, skill_id):
-        print(f"\n📚 LEARN_SKILL вызвана! skill_id: {skill_id}")
-
-        skill = SkillLoader.get_skill_by_id(self.skills_data, skill_id)
-        if not skill:
-            self.add_to_log(f"❌ Навык {skill_id} не найден!")
-            return
-
-        print(f"   Название: {skill.get('название')}")
-        print(f"   Тип: {skill.get('тип')}")
-        print(f"   Эффект: {skill.get('эффект')}")
-        print(f"   Значение: {skill.get('значение')}")
-
-        if skill_id in self.игрок.get("выученные_навыки", []):
-            self.add_to_log(f"❌ Уже выучено!")
-            return
-
-        if self.игрок.get("очки_навыков", 0) <= 0:
-            self.add_to_log(f"❌ Нет очков навыков!")
-            return
-
-        if "выученные_навыки" not in self.игрок:
-            self.игрок["выученные_навыки"] = []
-
-        self.игрок["выученные_навыки"].append(skill_id)
-        self.игрок["очки_навыков"] -= 1
-        self.add_to_log(f"✅ Выучен навык: {skill['название']}!")
-
-        # ===== ПРИМЕНЯЕМ ЭФФЕКТ НАВЫКА (ЕСЛИ ПАССИВНЫЙ) =====
-        if skill["тип"] == "пассивный":
-            print(f"   → Применяем пассивный навык!")
-
-            # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩУЮ ФУНКЦИЮ из player.py
-            from entities.player import игрок as глобальный_игрок, добавить_пассивный_бонус
-
-            # Синхронизация
-            глобальный_игрок.update(self.игрок)
-
-            # Применяем эффект
-            эффект = skill.get('эффект', '')
-            значение = skill.get('значение', 0)
-
-            if эффект:
-                добавить_пассивный_бонус(эффект, значение)
-                print(f"   ✅ Применён бонус: {эффект} +{значение}")
-
-                # Обновляем здоровье если нужно
-                if эффект in ['здоровье', 'hp_bonus', 'стойкость', 'endurance_bonus']:
-                    self.inventory.update_max_health()
-            else:
-                print(f"   ⚠️ У навыка нет эффекта!")
-
-            # Синхронизация обратно
-            self.игрок.update(глобальный_игрок)
-
-        else:
-            print(f"   → Навык НЕ пассивный (тип: {skill['тип']})")
-
-        # Обновляем интерфейс
-        draw_status(self)
-        pygame.display.flip()
-
     def update_max_health(self):
         """Обёртка для вызова метода инвентаря"""
         self.inventory.update_max_health()
@@ -651,9 +590,9 @@ class Game:
             for item, btn_rect in self.skill_buttons:
                 if btn_rect.collidepoint(pos):
                     if self.current_skill_tab == "prof":
-                        self.upgrade_skill(item)
+                        upgrade_skill(self, item)
                     else:
-                        self.learn_skill(item)
+                        learn_skill(self, item)
                     return
 
     def handle_click(self, pos):
@@ -1187,26 +1126,6 @@ class Game:
         else:
             print(f"✅ Значение брони корректное: {старое}")
 
-    def upgrade_skill(self, skill_key):
-        """Прокачка профессионального навыка"""
-
-        current_value = self.игрок.get(skill_key, 0)
-        max_value = 10
-
-        if current_value >= max_value:
-            self.add_to_log("Навык достиг максимума!")
-            return False
-
-        if self.игрок.get("очки_умений", 0) <= 0:
-            self.add_to_log("Нет очков умений!")
-            return False
-
-        self.игрок[skill_key] = current_value + 1
-        self.игрок["очки_умений"] -= 1
-
-        self.add_to_log(f"Навык {skill_key} повышен до {self.игрок[skill_key]}!")
-        return True
-
     def _draw_trade_sell(self, panel_x, panel_y, panel_width, panel_height):
         """Отрисовка режима продажи с прокруткой"""
 
@@ -1374,168 +1293,6 @@ class Game:
                         self.battle_victory()
                     return
 
-    def _draw_skill_buttons(self):
-        """Рисует панель активных навыков в бою (с SVG иконками)"""
-        # Получаем выученные активные навыки
-        активные_навыки = []
-        for skill_id in self.игрок.get("выученные_навыки", []):
-            skill = SkillLoader.get_skill_by_id(self.skills_data, skill_id)
-            if skill and skill.get("тип") == "активный":
-                активные_навыки.append(skill)
-
-        if not активные_навыки:
-            return
-
-        # Параметры панели
-        slot_size = 64
-        spacing = 10
-        max_slots = 4
-        panel_width = max_slots * (slot_size + spacing) + spacing + 20
-        panel_height = slot_size + 60
-
-        # Позиция - слева внизу
-        panel_x = 30
-        panel_y = HEIGHT - 500
-
-        # Фон панели
-        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        panel_surface.fill((20, 20, 40, 200))
-        pygame.draw.rect(panel_surface, GOLD, panel_surface.get_rect(), 2)
-
-        corner_size = 10
-        corners = [(2, 2), (panel_width - corner_size - 2, 2), (2, panel_height - corner_size - 2),
-                   (panel_width - corner_size - 2, panel_height - corner_size - 2)]
-        for cx, cy in corners:
-            pygame.draw.rect(panel_surface, GOLD, (cx, cy, corner_size, corner_size), 2)
-
-        self.screen.blit(panel_surface, (panel_x, panel_y))
-
-        # Заголовок
-        title = font_medium.render("⚔️ НАВЫКИ", True, GOLD)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 6))
-
-        pygame.draw.line(self.screen, (100, 100, 120), (panel_x + 20, panel_y + 38),
-                         (panel_x + panel_width - 20, panel_y + 38), 1)
-
-        self.battle_skill_buttons = []
-        mouse_pos = pygame.mouse.get_pos()
-
-        for i, skill in enumerate(активные_навыки[:max_slots]):
-            x = panel_x + 15 + i * (slot_size + spacing)
-            y = panel_y + 45
-
-            slot_rect = pygame.Rect(x, y, slot_size, slot_size)
-            shadow_rect = pygame.Rect(x + 2, y + 2, slot_size, slot_size)
-            pygame.draw.rect(self.screen, (0, 0, 0, 80), shadow_rect)
-
-            стоимость_маны = skill.get("стоимость_маны", 0)
-            маны_хватает = self.игрок.get("мана", 0) >= стоимость_маны
-
-            if маны_хватает:
-                for j in range(slot_size):
-                    ratio = j / slot_size
-                    r = int(20 + 35 * ratio)
-                    g = int(40 + 25 * ratio)
-                    b = int(80 + 35 * ratio)
-                    color = (r, g, b)
-                    pygame.draw.line(self.screen, color, (x, y + j), (x + slot_size, y + j))
-                pygame.draw.rect(self.screen, GOLD, slot_rect, 2)
-            else:
-                for j in range(slot_size):
-                    ratio = j / slot_size
-                    r = int(40 + 20 * ratio)
-                    g = int(40 + 20 * ratio)
-                    b = int(50 + 20 * ratio)
-                    color = (r, g, b)
-                    pygame.draw.line(self.screen, color, (x, y + j), (x + slot_size, y + j))
-                pygame.draw.rect(self.screen, (80, 80, 80), slot_rect, 2)
-
-            if slot_rect.collidepoint(mouse_pos) and маны_хватает:
-                glow_rect = pygame.Rect(x - 3, y - 3, slot_size + 6, slot_size + 6)
-                pygame.draw.rect(self.screen, (255, 215, 0, 50), glow_rect, 2)
-
-            # ===== ЗАГРУЖАЕМ SVG ИКОНКУ =====
-            skill_type = skill.get("эффект", "damage")
-            icon_path = f"assets/skills/{skill_type}.svg"
-
-            try:
-                # Пробуем загрузить SVG
-                icon = pygame.image.load(icon_path).convert_alpha()
-                icon = pygame.transform.scale(icon, (slot_size - 12, slot_size - 12))
-            except:
-                # Если иконки нет - создаём заглушку
-                icon = self._create_skill_icon_1(skill_type)
-
-            self.screen.blit(icon, (x + 6, y + 6))
-
-            # Номер
-            num_bg = pygame.Surface((20, 20), pygame.SRCALPHA)
-            num_bg.fill((0, 0, 0, 180))
-            self.screen.blit(num_bg, (x + 2, y + 2))
-            pygame.draw.rect(self.screen, GOLD, (x + 2, y + 2, 20, 20), 1)
-            num = font_tiny.render(str(i + 1), True, GOLD if маны_хватает else GRAY)
-            self.screen.blit(num, (x + 6, y + 3))
-
-            # Стоимость маны
-            if стоимость_маны > 0:
-                mana_text = font_tiny.render(f"MP:{стоимость_маны}", True, (100, 200, 255) if маны_хватает else GRAY)
-                mana_x = x + slot_size // 2 - mana_text.get_width() // 2
-                self.screen.blit(mana_text, (mana_x, y + slot_size - 16))
-
-            # Подсказка
-            if slot_rect.collidepoint(mouse_pos):
-                tip_text = font_small.render(skill["название"], True, WHITE)
-                tip_x = x + slot_size // 2 - tip_text.get_width() // 2
-                tip_y = y - 28
-                tip_bg = pygame.Surface((tip_text.get_width() + 16, 24), pygame.SRCALPHA)
-                tip_bg.fill((0, 0, 0, 220))
-                pygame.draw.rect(tip_bg, GOLD, tip_bg.get_rect(), 1)
-                self.screen.blit(tip_bg, (tip_x - 8, tip_y - 2))
-                self.screen.blit(tip_text, (tip_x, tip_y))
-
-                #if стоимость_маны > 0:
-                    #mana_tip = font_tiny.render(f"MP: {стоимость_маны}", True,
-                                                #(100, 200, 255) if маны_хватает else GRAY)
-                    #mana_tip_x = x + slot_size // 2 - mana_tip.get_width() // 2
-                    #self.screen.blit(mana_tip, (mana_tip_x, y - 45))
-
-                if маны_хватает:
-                    use_btn = pygame.Rect(x + slot_size - 30, y + slot_size - 26, 26, 22)
-                    pygame.draw.rect(self.screen, HEALTH_GREEN, use_btn)
-                    pygame.draw.rect(self.screen, GOLD, use_btn, 1)
-                    use_text = font_tiny.render("ИСП", True, BLACK)
-                    self.screen.blit(use_text, (use_btn.x + 3, use_btn.y + 3))
-
-                self.battle_skill_buttons.append((skill["id"], slot_rect))
-
-            self.battle_skill_buttons.append((skill["id"], slot_rect))
-
-        # Индикатор маны
-        #мана_текст = font_tiny.render(f"MP: {self.игрок.get('мана', 0)}/{self.игрок.get('макс_мана', 50)}", True, GOLD)
-        #self.screen.blit(мана_текст, (panel_x + 10, panel_y + panel_height - 18))
-
-    def _create_skill_icon_1(self, skill_type):
-        """Создаёт заглушку для иконки навыка"""
-        icon = pygame.Surface((40, 40), pygame.SRCALPHA)
-        pygame.draw.circle(icon, (30, 30, 50), (20, 20), 18)
-        pygame.draw.circle(icon, GOLD, (20, 20), 18, 1)
-
-        colors = {
-            "damage": (255, 80, 80),
-            "shield": (80, 80, 255),
-            "lifesteal": (255, 50, 150),
-            "stun": (255, 200, 50),
-            "weaken": (50, 200, 255),
-            "bleed": (200, 50, 50),
-            "rage": (255, 100, 0)
-        }
-        color = colors.get(skill_type, (150, 150, 150))
-
-        pygame.draw.circle(icon, color, (20, 20), 12)
-        pygame.draw.circle(icon, (255, 255, 255), (20, 20), 12, 1)
-
-        return icon
 
     def battle_flee(self):
         """Побег из боя"""

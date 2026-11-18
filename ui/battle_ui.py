@@ -3,7 +3,7 @@ from config import *
 from entities import items as предметы
 from ui.widgets import draw_health_bar, draw_mana_bar
 from ui.widgets import разбить_текст_на_строки
-
+from loaders.skill_loader import SkillLoader
 
 def draw_battle(game):
     """Экран боя в стиле настольной игры"""
@@ -26,7 +26,7 @@ def draw_battle(game):
     _draw_battle_log(game)
     _draw_action_panel(game)
     _draw_belt_panel(game)
-    game._draw_skill_buttons()  # Оставляем в Game, если там логика
+    draw_skill_buttons(game) # Оставляем в Game, если там логика
 
 
 def _draw_player_card(game):
@@ -364,11 +364,184 @@ def _draw_action_panel(game):
     pygame.draw.rect(game.screen, GOLD, panel_rect, 3)
 
     game.battle_buttons = []
+    mouse_pos = pygame.mouse.get_pos()
 
+    # ===== Кнопка АТАКА =====
     attack_rect = pygame.Rect(panel_x + 50, panel_y + 15, 120, 50)
-    game._draw_button(attack_rect, "АТАКА", True)
+    if attack_rect.collidepoint(mouse_pos):
+        pygame.draw.rect(game.screen, GOLD, attack_rect)
+        attack_text = game.font_medium.render("АТАКА", True, BLACK)
+    else:
+        pygame.draw.rect(game.screen, DARK_RED, attack_rect)
+        pygame.draw.rect(game.screen, GOLD, attack_rect, 2)
+        attack_text = game.font_medium.render("АТАКА", True, WHITE)
+
+    text_x = attack_rect.x + attack_rect.width // 2 - attack_text.get_width() // 2
+    text_y = attack_rect.y + attack_rect.height // 2 - attack_text.get_height() // 2
+    game.screen.blit(attack_text, (text_x, text_y))
     game.battle_buttons.append(("attack", attack_rect))
 
+    # ===== Кнопка ПОБЕГ =====
     flee_rect = pygame.Rect(panel_x + panel_width - 170, panel_y + 15, 120, 50)
-    game._draw_button(flee_rect, "ПОБЕГ", False)
+    if flee_rect.collidepoint(mouse_pos):
+        pygame.draw.rect(game.screen, GOLD, flee_rect)
+        flee_text = game.font_medium.render("ПОБЕГ", True, BLACK)
+    else:
+        pygame.draw.rect(game.screen, DARK_RED, flee_rect)
+        pygame.draw.rect(game.screen, GOLD, flee_rect, 2)
+        flee_text = game.font_medium.render("ПОБЕГ", True, WHITE)
+
+    text_x = flee_rect.x + flee_rect.width // 2 - flee_text.get_width() // 2
+    text_y = flee_rect.y + flee_rect.height // 2 - flee_text.get_height() // 2
+    game.screen.blit(flee_text, (text_x, text_y))
     game.battle_buttons.append(("flee", flee_rect))
+
+def draw_skill_buttons(game):
+    """Рисует панель активных навыков в бою"""
+    # Получаем выученные активные навыки
+    активные_навыки = []
+    for skill_id in game.игрок.get("выученные_навыки", []):
+        skill = SkillLoader.get_skill_by_id(game.skills_data, skill_id)
+        if skill and skill.get("тип") == "активный":
+            активные_навыки.append(skill)
+
+    if not активные_навыки:
+        return
+
+    # Параметры панели
+    slot_size = 64
+    spacing = 10
+    max_slots = 4
+    panel_width = max_slots * (slot_size + spacing) + spacing + 20
+    panel_height = slot_size + 60
+
+    # Позиция - слева внизу
+    panel_x = 30
+    panel_y = HEIGHT - 500
+
+    # Фон панели
+    panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+    panel_surface.fill((20, 20, 40, 200))
+    pygame.draw.rect(panel_surface, GOLD, panel_surface.get_rect(), 2)
+
+    corner_size = 10
+    corners = [(2, 2), (panel_width - corner_size - 2, 2), (2, panel_height - corner_size - 2),
+               (panel_width - corner_size - 2, panel_height - corner_size - 2)]
+    for cx, cy in corners:
+        pygame.draw.rect(panel_surface, GOLD, (cx, cy, corner_size, corner_size), 2)
+
+    game.screen.blit(panel_surface, (panel_x, panel_y))
+
+    # Заголовок
+    title = game.font_medium.render("⚔️ НАВЫКИ", True, GOLD)
+    title_x = panel_x + panel_width // 2 - title.get_width() // 2
+    game.screen.blit(title, (title_x, panel_y + 6))
+
+    pygame.draw.line(game.screen, (100, 100, 120), (panel_x + 20, panel_y + 38),
+                     (panel_x + panel_width - 20, panel_y + 38), 1)
+
+    game.battle_skill_buttons = []
+    mouse_pos = pygame.mouse.get_pos()
+
+    for i, skill in enumerate(активные_навыки[:max_slots]):
+        x = panel_x + 15 + i * (slot_size + spacing)
+        y = panel_y + 45
+
+        slot_rect = pygame.Rect(x, y, slot_size, slot_size)
+        shadow_rect = pygame.Rect(x + 2, y + 2, slot_size, slot_size)
+        pygame.draw.rect(game.screen, (0, 0, 0, 80), shadow_rect)
+
+        стоимость_маны = skill.get("стоимость_маны", 0)
+        маны_хватает = game.игрок.get("мана", 0) >= стоимость_маны
+
+        if маны_хватает:
+            for j in range(slot_size):
+                ratio = j / slot_size
+                r = int(20 + 35 * ratio)
+                g = int(40 + 25 * ratio)
+                b = int(80 + 35 * ratio)
+                color = (r, g, b)
+                pygame.draw.line(game.screen, color, (x, y + j), (x + slot_size, y + j))
+            pygame.draw.rect(game.screen, GOLD, slot_rect, 2)
+        else:
+            for j in range(slot_size):
+                ratio = j / slot_size
+                r = int(40 + 20 * ratio)
+                g = int(40 + 20 * ratio)
+                b = int(50 + 20 * ratio)
+                color = (r, g, b)
+                pygame.draw.line(game.screen, color, (x, y + j), (x + slot_size, y + j))
+            pygame.draw.rect(game.screen, (80, 80, 80), slot_rect, 2)
+
+        if slot_rect.collidepoint(mouse_pos) and маны_хватает:
+            glow_rect = pygame.Rect(x - 3, y - 3, slot_size + 6, slot_size + 6)
+            pygame.draw.rect(game.screen, (255, 215, 0, 50), glow_rect, 2)
+
+        # ===== ЗАГРУЖАЕМ SVG ИКОНКУ =====
+        skill_type = skill.get("эффект", "damage")
+        icon_path = f"assets/skills/{skill_type}.svg"
+
+        try:
+            icon = pygame.image.load(icon_path).convert_alpha()
+            icon = pygame.transform.scale(icon, (slot_size - 12, slot_size - 12))
+        except:
+            icon = _create_skill_icon_1(skill_type)
+
+        game.screen.blit(icon, (x + 6, y + 6))
+
+        # Номер
+        num_bg = pygame.Surface((20, 20), pygame.SRCALPHA)
+        num_bg.fill((0, 0, 0, 180))
+        game.screen.blit(num_bg, (x + 2, y + 2))
+        pygame.draw.rect(game.screen, GOLD, (x + 2, y + 2, 20, 20), 1)
+        num = game.font_tiny.render(str(i + 1), True, GOLD if маны_хватает else GRAY)
+        game.screen.blit(num, (x + 6, y + 3))
+
+        # Стоимость маны
+        if стоимость_маны > 0:
+            mana_text = game.font_tiny.render(f"MP:{стоимость_маны}", True, (100, 200, 255) if маны_хватает else GRAY)
+            mana_x = x + slot_size // 2 - mana_text.get_width() // 2
+            game.screen.blit(mana_text, (mana_x, y + slot_size - 16))
+
+        # Подсказка
+        if slot_rect.collidepoint(mouse_pos):
+            tip_text = game.font_small.render(skill["название"], True, WHITE)
+            tip_x = x + slot_size // 2 - tip_text.get_width() // 2
+            tip_y = y - 28
+            tip_bg = pygame.Surface((tip_text.get_width() + 16, 24), pygame.SRCALPHA)
+            tip_bg.fill((0, 0, 0, 220))
+            pygame.draw.rect(tip_bg, GOLD, tip_bg.get_rect(), 1)
+            game.screen.blit(tip_bg, (tip_x - 8, tip_y - 2))
+            game.screen.blit(tip_text, (tip_x, tip_y))
+
+            if маны_хватает:
+                use_btn = pygame.Rect(x + slot_size - 30, y + slot_size - 26, 26, 22)
+                pygame.draw.rect(game.screen, HEALTH_GREEN, use_btn)
+                pygame.draw.rect(game.screen, GOLD, use_btn, 1)
+                use_text = game.font_tiny.render("ИСП", True, BLACK)
+                game.screen.blit(use_text, (use_btn.x + 3, use_btn.y + 3))
+
+        game.battle_skill_buttons.append((skill["id"], slot_rect))
+
+
+def _create_skill_icon_1(skill_type):
+    """Создаёт заглушку для иконки навыка"""
+    icon = pygame.Surface((40, 40), pygame.SRCALPHA)
+    pygame.draw.circle(icon, (30, 30, 50), (20, 20), 18)
+    pygame.draw.circle(icon, GOLD, (20, 20), 18, 1)
+
+    colors = {
+        "damage": (255, 80, 80),
+        "shield": (80, 80, 255),
+        "lifesteal": (255, 50, 150),
+        "stun": (255, 200, 50),
+        "weaken": (50, 200, 255),
+        "bleed": (200, 50, 50),
+        "rage": (255, 100, 0)
+    }
+    color = colors.get(skill_type, (150, 150, 150))
+
+    pygame.draw.circle(icon, color, (20, 20), 12)
+    pygame.draw.circle(icon, (255, 255, 255), (20, 20), 12, 1)
+
+    return icon
