@@ -4,6 +4,11 @@ import math
 import random
 import sys
 
+# ===== ДИОЛОГИ+СОХРАНЕНИЯ =====
+from ui.dialogs.exit_dialog import show_exit_dialog
+from ui.dialogs.exit_confirmation import show_exit_confirmation
+
+
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
@@ -1273,7 +1278,7 @@ class Game:
 
 
                 elif action == "с":
-                    if self.show_exit_dialog():
+                    if show_exit_dialog(self):
                         # Возвращаемся в главное меню
                         self.игра_активна = False
                         # Перезапускаем игру с главного меню
@@ -1339,119 +1344,6 @@ class Game:
 
                 break
 
-    def show_exit_dialog(self):
-        """Показывает диалог выхода с подсветкой кнопок при наведении"""
-
-        # Затемнение фона
-        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 200))
-        self.screen.blit(s, (0, 0))
-
-        # Панель диалога
-        panel_width = 320
-        panel_height = 280
-        panel_x = WIDTH // 2 - panel_width // 2
-        panel_y = HEIGHT // 2 - panel_height // 2
-
-        # Фон панели
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-        pygame.draw.rect(self.screen, DARK_BLUE, panel_rect)
-        pygame.draw.rect(self.screen, GOLD, panel_rect, 3)
-
-        # Текст вопроса
-        question = font_medium.render("СОХРАНИТЬ ИГРУ?", True, GOLD)
-        q_x = panel_x + panel_width // 2 - question.get_width() // 2
-        self.screen.blit(question, (q_x, panel_y + 30))
-
-        # Разделитель
-        pygame.draw.line(self.screen, GOLD,
-                         (panel_x + 20, panel_y + 70),
-                         (panel_x + panel_width - 20, panel_y + 70), 2)
-
-        # Параметры кнопок
-        button_width = 260
-        button_height = 45
-        button_spacing = 15
-
-        start_y = panel_y + 95
-
-        save_rect = pygame.Rect(panel_x + (panel_width - button_width) // 2,
-                                start_y, button_width, button_height)
-        exit_rect = pygame.Rect(panel_x + (panel_width - button_width) // 2,
-                                start_y + button_height + button_spacing,
-                                button_width, button_height)
-        cancel_rect = pygame.Rect(panel_x + (panel_width - button_width) // 2,
-                                  start_y + (button_height + button_spacing) * 2,
-                                  button_width, button_height)
-
-        # Отрисовка кнопок
-        mouse_pos = pygame.mouse.get_pos()
-
-        # Кнопка "СОХРАНИТЬ"
-        if save_rect.collidepoint(mouse_pos):
-            # Подсветка при наведении
-            pygame.draw.rect(self.screen, GOLD, save_rect)
-            save_text = font_medium.render("СОХРАНИТЬ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, save_rect)
-            pygame.draw.rect(self.screen, GOLD, save_rect, 2)
-            save_text = font_medium.render("СОХРАНИТЬ", True, WHITE)
-
-        text_x = save_rect.x + save_rect.width // 2 - save_text.get_width() // 2
-        text_y = save_rect.y + save_rect.height // 2 - save_text.get_height() // 2
-        self.screen.blit(save_text, (text_x, text_y))
-
-        # Кнопка "ВЫЙТИ"
-        if exit_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, exit_rect)
-            exit_text = font_medium.render("ВЫЙТИ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, exit_rect)
-            pygame.draw.rect(self.screen, GOLD, exit_rect, 2)
-            exit_text = font_medium.render("ВЫЙТИ", True, WHITE)
-
-        text_x = exit_rect.x + exit_rect.width // 2 - exit_text.get_width() // 2
-        text_y = exit_rect.y + exit_rect.height // 2 - exit_text.get_height() // 2
-        self.screen.blit(exit_text, (text_x, text_y))
-
-        # Кнопка "ОТМЕНА"
-        if cancel_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, cancel_rect)
-            cancel_text = font_medium.render("ОТМЕНА", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, cancel_rect)
-            pygame.draw.rect(self.screen, GOLD, cancel_rect, 2)
-            cancel_text = font_medium.render("ОТМЕНА", True, WHITE)
-
-        text_x = cancel_rect.x + cancel_rect.width // 2 - cancel_text.get_width() // 2
-        text_y = cancel_rect.y + cancel_rect.height // 2 - cancel_text.get_height() // 2
-        self.screen.blit(cancel_text, (text_x, text_y))
-
-        pygame.display.flip()
-
-        # Ожидание выбора
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        if save_rect.collidepoint(event.pos):
-                            show_save_menu_for_exit(self)
-                            return True
-                        elif exit_rect.collidepoint(event.pos):
-                            return True
-                        elif cancel_rect.collidepoint(event.pos):
-                            return False
-                elif event.type == pygame.MOUSEMOTION:
-                    # При движении мыши перерисовываем панель
-                    # Рекурсивно вызываем себя для обновления подсветки
-                    return self.show_exit_dialog()
-
-            clock.tick(FPS)
-
-        return False
 
     def rest_in_hub(self):
         """Отдых в убежище — полное восстановление (только 1 раз в день)"""
@@ -1783,7 +1675,7 @@ class Game:
                                         show_save_menu(self)
                                     elif action == "с":  # Выход
                                         print("🚪 Выход в главное меню")
-                                        if self.show_exit_dialog():
+                                        if show_exit_dialog(self):
                                             self.игра_активна = False
                                     break
 
@@ -1794,9 +1686,9 @@ class Game:
                             self.handle_battle_click(mouse_pos)
                         elif self.режим == "торговля":
                             handle_trade_click(self, mouse_pos)
-                        elif self.режим == "quest_trade_menu":  # 👈 ЭТОЙ СТРОКИ НЕТ!
+                        elif self.режим == "quest_trade_menu":
                             self.handle_quest_trade_click(mouse_pos)
-                        elif self.режим == "квесты":  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ!
+                        elif self.режим == "квесты":
                             self.handle_quests_click(mouse_pos)
                         elif self.режим == "крафт":
                             handle_craft_click(self, mouse_pos)
@@ -1860,7 +1752,7 @@ class Game:
             elif self.режим == "торговля":
                 draw_trade(self)
 
-            elif self.режим == "quest_trade_menu":  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ!
+            elif self.режим == "quest_trade_menu":  
                 draw_quest_trade_menu(self)
 
             elif self.режим == "квесты":
@@ -1886,81 +1778,6 @@ class Game:
             # Обновление экрана
             pygame.display.flip()
             clock.tick(FPS)
-
-    def show_exit_confirmation(self):
-        """Показывает диалог подтверждения выхода из игры"""
-
-        # Затемнение фона
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
-        self.screen.blit(overlay, (0, 0))
-
-        # Панель диалога
-        panel_width = 400
-        panel_height = 200
-        panel_x = WIDTH // 2 - panel_width // 2
-        panel_y = HEIGHT // 2 - panel_height // 2
-
-        # Фон панели
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-        pygame.draw.rect(self.screen, DARK_BLUE, panel_rect)
-        pygame.draw.rect(self.screen, GOLD, panel_rect, 3)
-
-        # Текст
-        question = font_medium.render("Выйти из игры?", True, GOLD)
-        q_x = panel_x + panel_width // 2 - question.get_width() // 2
-        self.screen.blit(question, (q_x, panel_y + 30))
-
-        sub_text = font_small.render("Жду тебя снова", True, WHITE)
-        sub_x = panel_x + panel_width // 2 - sub_text.get_width() // 2
-        self.screen.blit(sub_text, (sub_x, panel_y + 70))
-
-        # Кнопки
-        yes_rect = pygame.Rect(panel_x + 50, panel_y + 120, 120, 40)
-        no_rect = pygame.Rect(panel_x + panel_width - 170, panel_y + 120, 120, 40)
-
-        mouse_pos = pygame.mouse.get_pos()
-
-        # Кнопка ДА
-        if yes_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, yes_rect)
-            yes_text = font_medium.render("ДА", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, yes_rect)
-            pygame.draw.rect(self.screen, GOLD, yes_rect, 2)
-            yes_text = font_medium.render("ДА", True, WHITE)
-        self.screen.blit(yes_text, (yes_rect.x + 45, yes_rect.y + 8))
-
-        # Кнопка НЕТ
-        if no_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, no_rect)
-            no_text = font_medium.render("НЕТ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, no_rect)
-            pygame.draw.rect(self.screen, GOLD, no_rect, 2)
-            no_text = font_medium.render("НЕТ", True, WHITE)
-        self.screen.blit(no_text, (no_rect.x + 40, no_rect.y + 8))
-
-        pygame.display.flip()
-
-        # Ожидание выбора
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return True
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        if yes_rect.collidepoint(event.pos):
-                            return True
-                        elif no_rect.collidepoint(event.pos):
-                            return False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return False
-            clock.tick(FPS)
-
-        return False
 
     def _handle_scroll(self, y):
         """Обработка прокрутки колесиком мыши (вынесено для читаемости)"""

@@ -6,6 +6,7 @@ from systems import barriers as барьеры
 from entities.player import создать_нового_игрока
 from systems.inventory_system import InventorySystem
 from systems.battle_system import BattleSystem
+from ui.dialogs.exit_confirmation import show_exit_confirmation
 
 def show_main_menu(game):
     """Показывает главное меню и возвращает True (игра запущена) или None (выход)"""
@@ -113,7 +114,7 @@ def show_main_menu(game):
 
                 elif exit_rect.collidepoint(mouse_pos):
                     print("🚪 Нажата кнопка ВЫХОД")
-                    if game.show_exit_confirmation():
+                    if show_exit_confirmation(game):
                         print("   ⚠️ Возвращаем None (выход из меню)")
                         return None
                     else:
