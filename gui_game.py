@@ -12,7 +12,7 @@ from ui.panels.loot_panel import draw_loot_panel
 from ui.panels.search_bar import draw_search_bar
 from ui.panels.quests_panel import draw_quests
 from ui.screens.class_selection import show_class_selection
-
+from loaders.asset_loader import load_close_icon, load_action_icons, load_backgrounds, load_item_icons, create_placeholder_icon
 
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
@@ -76,7 +76,6 @@ font_medium = fonts["medium"]
 font_large = fonts["large"]
 font_emoji = pygame.font.Font(EMOJI_FONT_PATH, 28)
 
-
 class Game:
     def __init__(self,api=None):
         """Инициализация игры"""
@@ -121,7 +120,7 @@ class Game:
 
         # ========== ЗАГРУЗКА РЕСУРСОВ ==========
         self.close_icon = None
-        self.load_close_icon()
+        load_close_icon(self)
 
         # ========== ЗАГРУЗКА НАВЫКОВ ==========
         self.current_skill_tab = "prof"
@@ -134,8 +133,7 @@ class Game:
 
         # ========== ИКОНКИ ПРЕДМЕТОВ ==========
         self.item_icons = {}
-        self.load_item_icons()
-
+        load_item_icons(self)
         # ========== СИСТЕМА ИНВЕНТАРЯ ==========
         self.inventory = InventorySystem(self.игрок, self.item_icons)
 
@@ -188,15 +186,14 @@ class Game:
 
         # ========== ФОНЫ ЛОКАЦИЙ ==========
         self.backgrounds = {}
-        self.load_backgrounds()
+        load_backgrounds(self)
 
         # ===== ВИДЕО-ПЕРЕХОДЫ =====
         self.video_manager = VideoManager()
 
         # ========== ИКОНКИ ДЕЙСТВИЙ ==========
         self.action_icons = {}
-        self.load_action_icons()
-
+        load_action_icons(self)
         # ========== СИСТЕМА КРАФТА ==========
         self.craft_categories = {
             "ОРУЖИЕ": ["лезвие", "призрачный меч"],
@@ -449,84 +446,6 @@ class Game:
             self.screen.blit(text_surface, (tooltip_x + padding, text_y))
             text_y += line_height
 
-    def load_item_icons(self):
-        """Загружает иконки для всех предметов"""
-
-        from entities import items as предметы
-
-        # Загружаем только те, для которых есть иконки
-        for item_name, path in предметы.ITEMS_WITH_ICONS.items():
-            try:
-                icon = pygame.image.load(path).convert_alpha()
-                icon = pygame.transform.scale(icon, (64, 64))
-                self.item_icons[item_name] = icon
-            except Exception as e:
-                print(f"❌ Не удалось загрузить {item_name}: {e}")
-                self.item_icons[item_name] = self.create_placeholder_icon(item_name)
-
-        # Для остальных - заглушки
-        for item_name in предметы.предметы.keys():
-            if item_name not in self.item_icons:
-                self.item_icons[item_name] = self.create_placeholder_icon(item_name)
-
-    def create_placeholder_icon(self, item_name):
-        """Создаёт иконку-заглушку для предмета на основе его реального типа"""
-        icon = pygame.Surface((32, 32), pygame.SRCALPHA)
-
-        from entities import items as предметы
-
-        # Получаем реальные данные предмета
-        item_data = предметы.предметы.get(item_name, {})
-        item_type = item_data.get("тип", "неизвестно")
-
-        # Определяем цвет и символ по ТИПУ предмета
-        if item_type == "оружие":
-            color = (200, 100, 100)  # красный
-            symbol = "ОРУЖ"
-        elif item_type == "броня":
-            color = (100, 100, 200)  # синий
-            symbol = "БРОН"
-        elif item_type == "еда":
-            color = (100, 200, 100)  # зелёный
-            symbol = "ЕДА"
-        elif item_type == "книга":
-            color = (150, 100, 50)  # коричневый
-            symbol = "КНИГ"
-        elif item_type == "аксессуар" or item_type == "амулет":
-            color = (150, 50, 150)  # фиолетовый
-            symbol = "АМУЛ"
-        elif item_type == "ценность":
-            color = (200, 200, 100)  # золотой
-            symbol = "ЦЕН"
-        elif item_type == "ресурс":
-            color = (80, 80, 100)  # серо-синий
-            symbol = "РЕС"
-        elif item_type == "трофей":
-            color = (120, 80, 60)  # коричневый
-            symbol = "ТРОФ"
-        elif item_type == "ключ":
-            color = (180, 150, 50)  # золотистый
-            symbol = "КЛЮЧ"
-        else:
-            color = (150, 150, 150)  # серый
-            symbol = "???"
-
-        # Заливка
-        pygame.draw.rect(icon, color, (0, 0, 32, 32))
-        pygame.draw.rect(icon, (200, 200, 200), (0, 0, 32, 32), 2)
-
-        # Текст
-        try:
-            font = pygame.font.Font(None, 16)
-            text = font.render(symbol, True, (255, 255, 255))
-            text_rect = text.get_rect(center=(16, 16))
-            icon.blit(text, text_rect)
-        except:
-            pass
-
-        return icon
-
-
     def start_transition(self, new_location):
         """Начинает анимацию перехода к новой локации"""
         if self.transition_active:
@@ -585,85 +504,6 @@ class Game:
         else:
             self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
             print("🖥️ Оконный режим включен")
-
-
-    def load_close_icon(self):
-        """Загружает иконку закрытия"""
-        try:
-            self.close_icon = pygame.image.load("assets/ui/close.png").convert_alpha()
-            self.close_icon = pygame.transform.scale(self.close_icon, (40, 40))
-            print("✅ Иконка закрытия загружена")
-        except Exception as e:
-            print(f"❌ Ошибка загрузки иконки закрытия: {e}")
-            self.close_icon = None
-
-    def load_action_icons(self):
-        """Загружает иконки для кнопок действий"""
-        icon_files = {
-            "search": "assets/ui/buttons/search.png",
-            "inventory": "assets/ui/buttons/inventory.png",
-            "map": "assets/ui/buttons/map.png",
-            "save": "assets/ui/buttons/save.png",
-            "skills": "assets/ui/buttons/skills.png",
-            "exit": "assets/ui/buttons/exit.png",
-            "trade": "assets/ui/buttons/trade.png",
-            "craft": "assets/ui/buttons/craft.png",
-            "examine": "assets/ui/buttons/examine.png"
-        }
-
-        for key, path in icon_files.items():
-            try:
-                icon = pygame.image.load(path).convert_alpha()
-                # Масштабируем до 24x24 для размещения на кнопке
-                icon = pygame.transform.scale(icon, (24, 24))
-                self.action_icons[key] = icon
-            except Exception as e:
-                print(f"❌ Ошибка загрузки {key}: {e}")
-                self.action_icons[key] = None
-
-
-    def load_backgrounds(self):
-        """Загружает фоны для всех локаций"""
-
-        # Список локаций и соответствующих файлов
-        bg_files = {
-            "Холл": "assets/backgrounds/hall.png",
-            "Кухня": "assets/backgrounds/kitchen.png",
-            "Сад": "assets/backgrounds/garden.png",
-            "Пруд": "assets/backgrounds/pond.png",
-            "Мастерская": "assets/backgrounds/workshop.png",
-            "Лестница": "assets/backgrounds/stairs.png",
-            "Библиотека": "assets/backgrounds/library.png",
-            "Коридор": "assets/backgrounds/corridor.png",
-            "Темница": "assets/backgrounds/dungeon.png",
-            "Главный зал": "assets/backgrounds/great_hall.png",
-            "Убежище": "assets/backgrounds/ubegische.png"
-        }
-
-        for локация, path in bg_files.items():
-            try:
-                bg = pygame.image.load(path).convert()
-                bg = pygame.transform.scale(bg, (WIDTH, HEIGHT))
-                self.backgrounds[локация] = bg
-            except Exception as e:
-                print(f"❌ Не удалось загрузить фон для {локация}: {e}")
-                # Если фона нет, создаём запасной цветной фон
-                bg = pygame.Surface((WIDTH, HEIGHT))
-                # Разные цвета для разных локаций
-                colors = {
-                    "Холл": DARK_BLUE,
-                    "Кухня": DARK_RED,
-                    "Сад": (20, 50, 20),
-                    "Пруд": (20, 30, 50),
-                    "Мастерская": (40, 30, 20),
-                    "Лестница": (30, 30, 30),
-                    "Библиотека": (40, 20, 20),
-                    "Коридор": (25, 20, 20),
-                    "Темница": (10, 10, 10),
-                    "Главный зал": (50, 30, 30)
-                }
-                bg.fill(colors.get(локация, BLACK))
-                self.backgrounds[локация] = bg
 
     def apply_class(self, название_класса):
         from systems import classes as классы
