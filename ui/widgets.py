@@ -1,6 +1,5 @@
 import pygame
-from config import WIDTH, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN
-
+from config import WIDTH, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN, HEALTH_BG, HEALTH_YELLOW, HEALTH_RED
 
 def draw_item_tooltip(game, item_name, x, y):
     """Рисует всплывающую подсказку с информацией о предмете"""
@@ -115,3 +114,39 @@ def draw_item_tooltip(game, item_name, x, y):
         text_surface = game.font_small.render(line, True, color)
         game.screen.blit(text_surface, (tooltip_x + padding, text_y))
         text_y += line_height
+
+def draw_health_bar(game, x, y, width, height, current, maximum):
+    """Рисует полоску здоровья"""
+    pygame.draw.rect(game.screen, HEALTH_BG, (x, y, width, height))
+
+    percent = current / maximum if maximum > 0 else 0
+    if percent > 0.6:
+        color = HEALTH_GREEN
+    elif percent > 0.3:
+        color = HEALTH_YELLOW
+    else:
+        color = HEALTH_RED
+
+    bar_width = int(width * percent)
+    if bar_width > 0:
+        pygame.draw.rect(game.screen, color, (x, y, bar_width, height))
+
+    pygame.draw.rect(game.screen, GOLD, (x, y, width, height), 2)
+
+    health_text = game.font_small.render(f"{current}/{maximum}", True, WHITE)
+    game.screen.blit(health_text, (x + width // 2 - 30, y + 5))
+
+def draw_mana_bar(game, x, y, width, height, current, maximum):
+    """Рисует полоску маны"""
+    pygame.draw.rect(game.screen, (40, 40, 60), (x, y, width, height))
+
+    if maximum > 0:
+        percent = current / maximum
+        bar_width = int(width * percent)
+        if bar_width > 0:
+            pygame.draw.rect(game.screen, (80, 120, 255), (x, y, bar_width, height))
+
+    pygame.draw.rect(game.screen, GOLD, (x, y, width, height), 2)
+
+    mana_text = game.font_small.render(f"{current}/{maximum}", True, WHITE)
+    game.screen.blit(mana_text, (x + width // 2 - 30, y + 5))

@@ -1,6 +1,7 @@
 import pygame
 from config import *
 from entities import items as предметы
+from ui.widgets import draw_health_bar, draw_mana_bar
 
 
 def draw_battle(game):
@@ -41,13 +42,15 @@ def _draw_player_card(game):
     _draw_player_sprite(game, sprite_x, sprite_y)
 
     health_bar_y = sprite_y + game.player_size + 20
-    game.draw_health_bar(
+    draw_health_bar(
+        game,
         card_x + 30, health_bar_y, card_width - 60, 22,
         game.игрок['здоровье'], game.игрок['макс_здоровье']
     )
 
     mana_bar_y = health_bar_y + 32
-    game.draw_mana_bar(
+    draw_mana_bar(
+        game,
         card_x + 30, mana_bar_y, card_width - 60, 22,
         game.игрок.get('мана', 0), game.игрок.get('макс_мана', 50)
     )
@@ -71,7 +74,8 @@ def _draw_enemy_card(game):
     _draw_enemy_sprite(game, sprite_x, sprite_y)
 
     health_bar_y = sprite_y + game.enemy_size + 20
-    game.draw_health_bar(
+    draw_health_bar(
+        game,
         card_x + 30, health_bar_y, card_width - 60, 25,
         game.enemy_health, game.enemy_data["здоровье"]
     )

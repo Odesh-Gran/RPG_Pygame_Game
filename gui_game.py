@@ -34,6 +34,7 @@ from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
 from ui.skills_menu import draw_skills_menu
 from ui.login_screen import LoginScreen
 from ui.widgets import draw_item_tooltip
+from ui.widgets import draw_health_bar, draw_mana_bar
 
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
@@ -1493,43 +1494,6 @@ class Game:
                 btn_all_text = font_small.render("ВСЕ", True, WHITE)
             self.screen.blit(btn_all_text, (btn_all_rect.x + 10, btn_all_rect.y + 5))
             self.trade_items.append(("sell_all", предмет, btn_all_rect, цена_продажи, количество))
-
-
-    def draw_health_bar(self, x, y, width, height, current, maximum):
-        """Рисует полоску здоровья"""
-        pygame.draw.rect(self.screen, HEALTH_BG, (x, y, width, height))
-
-        percent = current / maximum
-        if percent > 0.6:
-            color = HEALTH_GREEN
-        elif percent > 0.3:
-            color = HEALTH_YELLOW
-        else:
-            color = HEALTH_RED
-
-        bar_width = int(width * percent)
-        if bar_width > 0:
-            pygame.draw.rect(self.screen, color, (x, y, bar_width, height))
-
-        pygame.draw.rect(self.screen, GOLD, (x, y, width, height), 2)
-
-        health_text = font_small.render(f"{current}/{maximum}", True, WHITE)
-        self.screen.blit(health_text, (x + width // 2 - 30, y + 5))
-
-    def draw_mana_bar(self, x, y, width, height, current, maximum):
-        """Рисует полоску маны"""
-        pygame.draw.rect(self.screen, (40, 40, 60), (x, y, width, height))
-
-        if maximum > 0:
-            percent = current / maximum
-            bar_width = int(width * percent)
-            if bar_width > 0:
-                pygame.draw.rect(self.screen, (80, 120, 255), (x, y, bar_width, height))
-
-        pygame.draw.rect(self.screen, GOLD, (x, y, width, height), 2)
-
-        mana_text = font_small.render(f"{current}/{maximum}", True, WHITE)
-        self.screen.blit(mana_text, (x + width // 2 - 30, y + 5))
 
     def handle_battle_click(self, pos):
         if self.battle.battle_ended:
