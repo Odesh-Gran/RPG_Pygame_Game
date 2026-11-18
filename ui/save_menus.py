@@ -2,6 +2,7 @@ import pygame
 import sys
 from config import *
 from loaders import save_manager as сохранение
+from ui.dialogs.save_confirmation import show_save_confirmation
 from entities import items as предметы # если вдруг понадобится
 import json
 
@@ -181,7 +182,7 @@ def show_save_menu(game):
         game.clock.tick(FPS)
 
     if selected_slot:
-        game.show_save_confirmation(selected_slot)
+        show_save_confirmation(game, slot)
 
 
 def show_load_menu(game):
