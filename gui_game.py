@@ -7,6 +7,10 @@ import sys
 # ===== ДИОЛОГИ+СОХРАНЕНИЯ =====
 from ui.dialogs.exit_dialog import show_exit_dialog
 from ui.dialogs.exit_confirmation import show_exit_confirmation
+# ===== ПАНЕЛЬ(LOOT,QUEST,SEARCH) =====
+from ui.panels.loot_panel import draw_loot_panel
+from ui.panels.search_bar import draw_search_bar
+from ui.panels.quests_panel import draw_quests
 
 
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
@@ -335,114 +339,6 @@ class Game:
         self.loot_animation_progress = 0
 
         print(f"   Панель лута закрыта!")
-    def draw_loot_panel(self):
-        """Рисует выезжающую панель лута в стиле игры"""
-        if not self.loot_panel_active:
-            return
-
-        # Параметры панели
-        panel_width = 320
-        panel_height = 250
-        panel_y = HEIGHT // 2 - panel_height // 2
-
-        # Анимация выезжания
-        if self.loot_animation_progress < 1:
-            self.loot_animation_progress += 0.05
-            if self.loot_animation_progress > 1:
-                self.loot_animation_progress = 1
-
-        current_x = -panel_width + (panel_width * self.loot_animation_progress)
-        panel_x = int(current_x)
-
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-
-        # ===== ФОН (как в инвентаре) =====
-        # Тёмно-синий фон
-        pygame.draw.rect(self.screen, DARK_BLUE, panel_rect)
-
-        # Золотая рамка
-        pygame.draw.rect(self.screen, GOLD, panel_rect, 3)
-
-        # Внутренняя рамка-пергамент (как в картах боя)
-        pygame.draw.rect(self.screen, GOLD, (panel_x + 5, panel_y + 5, panel_width - 10, panel_height - 10), 1)
-
-        # ===== ЗАГОЛОВОК =====
-        title = font_medium.render("ПОБЕДА!", True, GOLD)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 12))
-
-        # Разделитель (как в инвентаре)
-        pygame.draw.line(self.screen, GOLD,
-                         (panel_x + 15, panel_y + 42),
-                         (panel_x + panel_width - 15, panel_y + 42), 2)
-
-        # ===== ОПЫТ =====
-        exp_text = font_small.render(f"Опыт: +{self.loot_exp}", True, HEALTH_GREEN)
-        self.screen.blit(exp_text, (panel_x + 20, panel_y + 55))
-
-        # ===== ЗАГОЛОВОК ПРЕДМЕТОВ =====
-        items_title = font_small.render("ПОЛУЧЕНО:", True, GOLD)
-        self.screen.blit(items_title, (panel_x + 20, panel_y + 85))
-
-        # ===== СПИСОК ПРЕДМЕТОВ =====
-        y_offset = panel_y + 110
-        item_height = 28
-
-        for i, item in enumerate(self.loot_items):
-            # Иконка предмета
-            if item in self.item_icons:
-                icon = self.item_icons[item]
-                icon = pygame.transform.scale(icon, (24, 24))
-                self.screen.blit(icon, (panel_x + 20, y_offset + i * item_height - 2))
-                text_x = panel_x + 50
-            else:
-                text_x = panel_x + 20
-
-            item_text = font_small.render(f"• {item}", True, WHITE)
-            self.screen.blit(item_text, (text_x, y_offset + i * item_height))
-
-        # ===== РЕДКИЙ ПРЕДМЕТ =====
-        if self.loot_rare_item:
-            rare_y = y_offset + len(self.loot_items) * item_height + 5
-
-            # Разделитель
-            pygame.draw.line(self.screen, GOLD,
-                             (panel_x + 15, rare_y - 2),
-                             (panel_x + panel_width - 15, rare_y - 2), 1)
-
-            rare_title = font_small.render("РЕДКИЙ ДРОП!", True, BLOOD_RED)
-            self.screen.blit(rare_title, (panel_x + 100, rare_y))
-
-            if self.loot_rare_item in self.item_icons:
-                icon = self.item_icons[self.loot_rare_item]
-                icon = pygame.transform.scale(icon, (24, 24))
-                self.screen.blit(icon, (panel_x + 20, rare_y + 18))
-                text_x = panel_x + 50
-            else:
-                text_x = panel_x + 20
-
-            rare_text = font_small.render(self.loot_rare_item, True, BLOOD_RED)
-            self.screen.blit(rare_text, (text_x, rare_y + 23))
-
-        # ===== КНОПКА "ЗАБРАТЬ" (как в инвентаре) =====
-        button_rect = pygame.Rect(panel_x + panel_width // 2 - 70,
-                                  panel_y + panel_height - 48,
-                                  140, 32)
-
-        mouse_pos = pygame.mouse.get_pos()
-        if button_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, button_rect)
-            button_text = font_small.render("ЗАБРАТЬ", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, button_rect)
-            pygame.draw.rect(self.screen, GOLD, button_rect, 2)
-            button_text = font_small.render("ЗАБРАТЬ", True, WHITE)
-
-        text_x = button_rect.x + button_rect.width // 2 - button_text.get_width() // 2
-        text_y = button_rect.y + button_rect.height // 2 - button_text.get_height() // 2
-        self.screen.blit(button_text, (text_x, text_y))
-
-        self.loot_button = button_rect
 
     def draw_item_tooltip(self, item_name, x, y):
         """Рисует всплывающую подсказку с информацией о предмете"""
@@ -949,100 +845,6 @@ class Game:
             self.trade_goods[предмет] = {"цена": данные["цена"]}
 
 
-    def draw_quests(self):
-        """Отображает окно квестов"""
-
-        # Анимация появления
-        if not hasattr(self, 'quest_animation_progress'):
-            self.quest_animation_progress = 0
-
-        if self.quest_animation_progress < 1:
-            self.quest_animation_progress += 0.08
-            if self.quest_animation_progress > 1:
-                self.quest_animation_progress = 1
-
-        # Параметры панели
-        panel_width = 600
-        panel_height = 500
-        panel_x = WIDTH // 2 - panel_width // 2
-        panel_y = HEIGHT // 2 - panel_height // 2
-
-        # Затемнение
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        self.screen.blit(overlay, (0, 0))
-
-        # Фон панели
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-        pygame.draw.rect(self.screen, DARK_BLUE, panel_rect)
-        pygame.draw.rect(self.screen, GOLD, panel_rect, 3)
-
-        # Заголовок
-        title = font_large.render("КВЕСТЫ", True, GOLD)
-        title_x = panel_x + panel_width // 2 - title.get_width() // 2
-        self.screen.blit(title, (title_x, panel_y + 20))
-
-        # Информация
-        активные = len(self.игрок.get("активные_квесты", []))
-        завершенные = len(self.игрок.get("завершенные_квесты", []))
-        info_text = font_small.render(f"Активных: {активные}  |  Завершено: {завершенные}", True, WHITE)
-        self.screen.blit(info_text, (panel_x + panel_width // 2 - info_text.get_width() // 2, panel_y + 60))
-
-        # Разделитель
-        pygame.draw.line(self.screen, GOLD,
-                         (panel_x + 20, panel_y + 90),
-                         (panel_x + panel_width - 20, panel_y + 90), 2)
-
-        # Активные квесты
-        y = panel_y + 105
-        активные_квесты = self.игрок.get("активные_квесты", [])
-
-        if активные_квесты:
-            for квест_id in активные_квесты:
-                квест = self.quest_system.получить_квест(квест_id)
-                if not квест:
-                    continue
-
-                # Название
-                name_text = font_medium.render(f"📜 {квест['название']}", True, GOLD)
-                self.screen.blit(name_text, (panel_x + 20, y))
-                y += 25
-
-                # Описание
-                desc_text = font_small.render(квест['описание'], True, WHITE)
-                self.screen.blit(desc_text, (panel_x + 30, y))
-                y += 22
-
-                # Прогресс
-                прогресс_строки = self.quest_system.получить_прогресс_строку(квест_id)
-                for строка in прогресс_строки:
-                    prog_text = font_tiny.render(f"  • {строка}", True, HEALTH_YELLOW)
-                    self.screen.blit(prog_text, (panel_x + 30, y))
-                    y += 18
-
-                y += 10
-        else:
-            empty_text = font_medium.render("Нет активных квестов", True, GRAY)
-            self.screen.blit(empty_text, (panel_x + panel_width // 2 - empty_text.get_width() // 2, panel_y + 200))
-
-        # Кнопка "Назад"
-        back_rect = pygame.Rect(panel_x + panel_width // 2 - 80, panel_y + panel_height - 50, 160, 40)
-        mouse_pos = pygame.mouse.get_pos()
-
-        if back_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.screen, GOLD, back_rect)
-            back_text = font_medium.render("НАЗАД", True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, back_rect)
-            pygame.draw.rect(self.screen, GOLD, back_rect, 2)
-            back_text = font_medium.render("НАЗАД", True, WHITE)
-
-        back_text_x = back_rect.x + back_rect.width // 2 - back_text.get_width() // 2
-        back_text_y = back_rect.y + back_rect.height // 2 - back_text.get_height() // 2
-        self.screen.blit(back_text, (back_text_x, back_text_y))
-
-        self.quest_back = back_rect
-
     def show_quest_trade_menu(self):
         """Показывает меню выбора между квестами и торговлей"""
         self.режим = "quest_trade_menu"
@@ -1440,72 +1242,6 @@ class Game:
 
         время.пройти_время(10)
 
-    def draw_обыск_шкала(self):
-        """Рисует шкалу прогресса обыска"""
-        if not self.обыск_активен:
-            return
-
-        # Параметры шкалы
-        ширина = 400
-        высота = 30
-        x = self.обыск_x
-        y = self.обыск_y
-
-        # ===== ЗАТЕМНЕНИЕ ФОНА =====
-        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 150))
-        self.screen.blit(s, (0, 0))
-
-        # ===== ФОН ШКАЛЫ =====
-        bg_rect = pygame.Rect(x, y, ширина, высота)
-        pygame.draw.rect(self.screen, (40, 40, 60), bg_rect)
-        pygame.draw.rect(self.screen, GOLD, bg_rect, 2)
-
-        # ===== ЗАПОЛНЕНИЕ ШКАЛЫ =====
-        if self.обыск_прогресс > 0:
-            заполнение = int(ширина * self.обыск_прогресс)
-            fill_rect = pygame.Rect(x + 2, y + 2, заполнение - 4, высота - 4)
-
-            if self.обыск_прогресс < 0.5:
-                r = 255
-                g = int(255 * (self.обыск_прогресс * 2))
-                b = 0
-            else:
-                r = int(255 * (1 - (self.обыск_прогресс - 0.5) * 2))
-                g = 255
-                b = 0
-
-            pygame.draw.rect(self.screen, (r, g, b), fill_rect)
-
-        # ===== ТЕКСТ =====
-        title_text = font_medium.render("ОБЫСК", True, GOLD)
-        title_x = x + ширина // 2 - title_text.get_width() // 2
-        self.screen.blit(title_text, (title_x, y - 35))
-
-        процент = int(self.обыск_прогресс * 100)
-        percent_text = font_small.render(f"{процент}%", True, WHITE)
-        percent_x = x + ширина // 2 - percent_text.get_width() // 2
-        percent_y = y + высота // 2 - percent_text.get_height() // 2
-        self.screen.blit(percent_text, (percent_x, percent_y))
-
-        # Анимированная иконка
-        if self.обыск_прогресс < 0.5:
-            icon = ""
-        elif self.обыск_прогресс < 0.8:
-            icon = ""
-        else:
-            icon = ""
-
-        icon_text = font_medium.render(icon, True, GOLD)
-        self.screen.blit(icon_text, (x - 40, y + 2))
-
-        # Свечение
-        glow_rect = pygame.Rect(x - 4, y - 4, ширина + 8, высота + 8)
-        glow_alpha = int(50 + 100 * abs(pygame.time.get_ticks() % 500 - 250) / 250)
-        pygame.draw.rect(self.screen, (GOLD[0], GOLD[1], GOLD[2], glow_alpha), glow_rect, 2)
-
-
-
     def show_save_confirmation(self, slot):
         """Показывает подтверждение сохранения"""
         waiting = True
@@ -1734,10 +1470,10 @@ class Game:
                 draw_actions(self)
                 self.draw_log_panel()
                 draw_battle_start_animation(self)
-                self.draw_loot_panel()
+                draw_loot_panel(self)
                 draw_quest_tracker(self)
                 draw_daily_quest_tracker(self)
-                self.draw_обыск_шкала()
+                draw_search_bar(self)
 
             elif self.режим == "инвентарь":
                 draw_inventory(self)
@@ -1756,7 +1492,7 @@ class Game:
                 draw_quest_trade_menu(self)
 
             elif self.режим == "квесты":
-                self.draw_quests()
+                draw_quests(self)
 
             elif self.режим == "крафт":
                 draw_craft(self)
@@ -1770,7 +1506,7 @@ class Game:
             elif self.режим == "эксплорейшн":
                 if hasattr(self, 'exploration_zone'):
                     self.dungeon.handle()
-                    self.draw_loot_panel()
+                    draw_loot_panel(self)
                 else:
                     print("❌ exploration_zone не существует!")
                     self.режим = "игра"
