@@ -61,6 +61,7 @@ from systems.video_manager import VideoManager
 from systems.audio import MusicManager
 from systems.crafting import craft_item
 from systems.skills_system import upgrade_skill, learn_skill
+from systems.battle_system import start_battle_gui, handle_battle_click, battle_flee, battle_victory
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
@@ -785,7 +786,7 @@ class Game:
         if событие == "враг" and локация_данные.get("возможные_враги", []):
             враг = рандомайзер.выбрать_врага(локация_данные["возможные_враги"])
             self.add_to_log(f"Нападает: {враг.replace('_', ' ')}!")
-            self.start_battle(враг)
+            start_battle_gui(self, враг)
 
         elif событие == "предмет" and локация_данные.get("возможные_предметы", {}):
             предмет = рандомайзер.выбрать_предмет(локация_данные["возможные_предметы"])
@@ -906,7 +907,7 @@ class Game:
                         elif self.режим == "инвентарь":
                             handle_inventory_click(self, mouse_pos)
                         elif self.режим == "бой":
-                            self.handle_battle_click(mouse_pos)
+                            handle_battle_click(self, mouse_pos)
                         elif self.режим == "торговля":
                             handle_trade_click(self, mouse_pos)
                         elif self.режим == "quest_trade_menu":
@@ -1219,140 +1220,6 @@ class Game:
             self.screen.blit(btn_all_text, (btn_all_rect.x + 10, btn_all_rect.y + 5))
             self.trade_items.append(("sell_all", предмет, btn_all_rect, цена_продажи, количество))
 
-    def handle_battle_click(self, pos):
-        if self.battle.battle_ended:
-            print("   ⚠️ Бой завершён, клики игнорируются")
-
-            # ===== ПРОВЕРКА НА РЕЗУЛЬТАТ ПОБЕДЫ =====
-            if hasattr(self.battle, 'victory_result') and self.battle.victory_result:
-                print("   🔥 Обрабатываем результат победы из battle_ended")
-                result = self.battle.victory_result
-                if isinstance(result, dict) and result.get("victory"):
-                    self.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
-                    self.battle_victory()
-                    self.battle.victory_result = None  # Сбрасываем
-                    return
-            return  # ← Выходим, если бой завершён
-
-        # ===== ПРОВЕРКА КЛИКОВ ПО ПОЯСУ (ТОЛЬКО КОГДА БОЙ АКТИВЕН) =====
-        if hasattr(self, 'belt_slots'):
-            for slot_index, slot_rect in self.belt_slots:
-                if slot_rect.collidepoint(pos):
-                    # Используем зелье с пояса
-                    успех, сообщение = self.battle.use_belt_potion(slot_index)
-                    self.add_to_log(сообщение)
-
-                    if успех:
-                        # После использования зелья - ход врага
-                        self.battle.enemy_attack()
-                        self.enemy_health = self.battle.enemy_health
-                        self.battle_log = self.battle.battle_log
-
-                        # Проверяем победу
-                        if self.battle.battle_ended and self.battle.victory_result:
-                            result = self.battle.victory_result
-                            self.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
-                            self.battle_victory()
-                            self.battle.victory_result = None
-                    return
-
-        # ===== ОСТАЛЬНЫЕ КНОПКИ =====
-        for action, rect in self.battle_buttons:
-            if rect.collidepoint(pos):
-                if action == "attack":
-                    print("⚔️ КЛИК ПО КНОПКЕ АТАКИ")
-                    result = self.battle.player_attack()
-
-                    # Синхронизация
-                    self.enemy_health = self.battle.enemy_health
-                    self.battle_log = self.battle.battle_log
-                    print(f"   enemy_health после синхронизации: {self.enemy_health}")
-
-                    if isinstance(result, dict) and result.get("victory"):
-                        print("   🏆 Враг убит!")
-                        self.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
-                        self.battle_victory()
-                    return
-
-                elif action == "flee":
-                    self.battle_flee()
-                    return
-
-        # ===== АКТИВНЫЕ НАВЫКИ =====
-        if hasattr(self, 'battle_skill_buttons'):
-            for skill_id, rect in self.battle_skill_buttons:
-                if rect.collidepoint(pos):
-                    result = self.battle.use_active_skill(skill_id, self.skills_data, self.add_to_log)
-
-                    self.enemy_health = self.battle.enemy_health
-                    self.battle_log = self.battle.battle_log
-                    self.blocking = self.battle.blocking
-
-                    if isinstance(result, dict) and result.get("victory"):
-                        self.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
-                        self.battle_victory()
-                    return
-
-
-    def battle_flee(self):
-        """Побег из боя"""
-        успех = self.battle.battle_flee()
-        if успех:
-            self.режим = "игра"
-        self.battle_log = self.battle.battle_log
-
-    # gui_game.py
-
-    def battle_victory(self):
-        """Победа в бою — только переключаем режим (панель лута уже показана)"""
-        print(f"\n🏆 BATTLE_VICTORY вызвана (GUI)!")
-
-        # ===== ОСТАНАВЛИВАЕМ МУЗЫКУ БОЯ =====
-        self.music.остановить_музыку()  # 👈 СНАЧАЛА ОСТАНАВЛИВАЕМ
-
-        # ===== ВОЗВРАЩАЕМ МУЗЫКУ ЛОКАЦИИ =====
-        if self.music.есть_музыка(self.текущая_локация):
-            self.music.переключить_плейлист(self.текущая_локация, self.игра_загружена)
-        else:
-            self.music.остановить_музыку()
-
-        # Если бой был в данже, удаляем врага
-        if hasattr(self, 'exploration_in_battle') and self.exploration_in_battle:
-            if hasattr(self, 'current_enemy'):
-                from entities.enemies import ЛЕСНЫЕ_БОССЫ
-                if self.current_enemy in ЛЕСНЫЕ_БОССЫ:
-                    for i, boss in enumerate(self.exploration_zone.bosses):
-                        if boss.boss_name == self.current_enemy:
-                            self.exploration_zone.bosses.pop(i)
-                            self.add_to_log(f"Ты победил {self.current_enemy.replace('_', ' ')}!")
-                            break
-                else:
-                    for i, mob in enumerate(self.exploration_zone.mobs):
-                        if mob.enemy_name == self.current_enemy and mob.is_alive:
-                            self.exploration_zone.mobs.pop(i)
-                            break
-
-        self.battle_log = []
-
-        # ===== ПЕРЕКЛЮЧАЕМ РЕЖИМ =====
-        if hasattr(self, 'exploration_in_battle') and self.exploration_in_battle:
-            self.режим = "эксплорейшн"
-            self.exploration_in_battle = False
-            print("🏰 Возвращаемся в данж")
-        elif hasattr(self, 'in_dungeon') and self.in_dungeon:
-            self.режим = "эксплорейшн"
-            self.in_dungeon = False
-            print("🏰 Возвращаемся в данж")
-        elif hasattr(self, 'exploration_zone') and self.exploration_zone is not None:
-            self.режим = "эксплорейшн"
-            print("🏰 Возвращаемся в данж")
-        else:
-            self.режим = "игра"
-            print("🎮 Возвращаемся в игру")
-
-        self.blocking = False
-        время.пройти_время(15)
-
     def add_to_log(self, message):
         """Добавляет сообщение в лог событий"""
         # ===== ПРОВЕРКА: ЕСЛИ log_messages НЕ СУЩЕСТВУЕТ — СОЗДАЁМ =====
@@ -1454,50 +1321,6 @@ class Game:
         text_x = rect.x + rect.width // 2 - button_text.get_width() // 2
         text_y = rect.y + rect.height // 2 - button_text.get_height() // 2
         self.screen.blit(button_text, (text_x, text_y))
-
-
-    def start_battle(self, враг_имя):
-        """Начинает бой с врагом"""
-        pygame.event.clear()
-
-        # ===== МУЗЫКА БОЯ =====
-        self.music.переключить_плейлист("бой", self.игра_загружена)
-
-        # ===== СБРОС ПАРАМЕТРОВ =====
-        self.enemy_bleed_duration = 0
-        self.enemy_bleed_damage = 0
-        self.enemy_stunned = False
-        self.enemy_weakened_duration = 0
-        self.blocking = False
-        self.enemy_damage_multiplier = 1.0
-        self.battle.battle_ended = False  # 👈 ОБЯЗАТЕЛЬНО!
-        self.battle.enemy_data = None
-        # =============================
-
-        self.add_to_log
-
-        self.enemy_sprite = load_enemy_sprite_by_name(self, враг_имя)
-
-        # Если мы в данже — запоминаем это
-        if hasattr(self, 'in_dungeon') and self.in_dungeon:
-            self.exploration_in_battle = True
-            print("⚔️ Бой в данже!")
-
-        # Запускаем бой через BattleSystem
-        battle_data = self.battle.start_battle(враг_имя)
-
-        self.режим = "бой"
-        self.current_enemy = battle_data["enemy_name"]
-        self.enemy_data = battle_data["enemy_data"]
-        self.enemy_health = battle_data["enemy_health"]
-        self.battle_log = battle_data["battle_log"]
-
-        # Запускаем анимацию
-        start_battle_animation(self)
-        pygame.time.wait(200)
-        время.пройти_время(2)
-
-
 
     def _пересчитать_пассивные_бонусы(self):
         """
