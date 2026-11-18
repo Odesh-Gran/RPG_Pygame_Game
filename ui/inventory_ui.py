@@ -1,6 +1,7 @@
 import pygame
 from config import *
 from entities import items as предметы
+from ui.widgets import draw_item_tooltip
 
 def draw_inventory(game):
     """Инвентарь с анимацией в стиле игры"""
@@ -438,7 +439,7 @@ def draw_inventory(game):
 
     if hovered_item and hover_pos:
         # Вызываем метод из Game, так как тултип тоже там
-        game.draw_item_tooltip(hovered_item, hover_pos[0], hover_pos[1])
+        draw_item_tooltip(game, hovered_item, hover_pos[0], hover_pos[1])
 
 
 def handle_inventory_click(game, pos):

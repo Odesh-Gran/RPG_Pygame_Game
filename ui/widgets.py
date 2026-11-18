@@ -1,0 +1,117 @@
+import pygame
+from config import WIDTH, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN
+
+
+def draw_item_tooltip(game, item_name, x, y):
+    """Рисует всплывающую подсказку с информацией о предмете"""
+
+    # Получаем данные предмета
+    from entities import items as предметы
+    item_data = предметы.предметы.get(item_name, {})
+
+    # Собираем информацию о предмете
+    info_lines = []
+
+    # Название предмета
+    info_lines.append(("=== " + item_name + " ===", GOLD))
+
+    # Тип предмета
+    item_type = item_data.get("тип", "неизвестно")
+    info_lines.append((f"Тип: {item_type}", WHITE))
+
+    # Характеристики в зависимости от типа
+    if item_type == "оружие":
+        урон = item_data.get("урон", 0)
+        тип_оружия = item_data.get("тип_оружия", "одноручное")
+        требование = item_data.get("требуемый_навык", 0)
+
+        info_lines.append((f"Урон: +{урон}", BLOOD_RED))
+        info_lines.append((f"Тип оружия: {тип_оружия}", WHITE))
+        if требование > 0:
+            info_lines.append((f"Требует навык: {требование}", GOLD))
+
+    elif item_type == "броня":
+        защита = item_data.get("защита", 0)
+        info_lines.append((f"Защита: +{защита}", HEALTH_GREEN))
+
+    elif item_type == "еда":
+        лечение = item_data.get("здоровье", 5)
+        кулинария_бонус = game.игрок.get("кулинария", 0)
+        итоговое_лечение = лечение + кулинария_бонус
+
+        info_lines.append((f"Восстанавливает: {лечение} HP", HEALTH_GREEN))
+        if кулинария_бонус > 0:
+            info_lines.append((f"Бонус кулинарии: +{кулинария_бонус} HP", GOLD))
+            info_lines.append((f"Итого: +{итоговое_лечение} HP", HEALTH_GREEN))
+
+    elif item_type == "книга":
+        навык = item_data.get("навык", "кулинария")
+        повышение = item_data.get("повышение", 5)
+        info_lines.append((f"Увеличивает {навык} на {повышение}", GOLD))
+
+    elif item_type == "аксессуар" or item_type == "амулет":
+        эффект = item_data.get("эффект", "неизвестный")
+        if эффект == "вампиризм":
+            info_lines.append((f"Эффект: Вампиризм (лечение от урона)", BLOOD_RED))
+        elif эффект == "сила":
+            бонус = item_data.get("сила_бонус", 3)
+            info_lines.append((f"Эффект: Сила +{бонус}", BLOOD_RED))
+        elif эффект == "здоровье":
+            бонус = item_data.get("здоровье_бонус", 20)
+            info_lines.append((f"Эффект: Здоровье +{бонус}", HEALTH_GREEN))
+        else:
+            info_lines.append((f"Эффект: {эффект}", GOLD))
+
+    # Описание (если есть)
+    описание = item_data.get("описание", "")
+    if описание:
+        # Вспомогательная функция для разбивки текста (если она была в Game)
+        # Если у тебя есть game._разбить_текст_на_строки, используем её:
+        if hasattr(game, '_разбить_текст_на_строки'):
+            desc_lines = game._разбить_текст_на_строки(описание, 250, game.font_small)
+            for line in desc_lines[:2]:  # максимум 2 строки описания
+                info_lines.append((line, (200, 200, 200)))
+        else:
+            # Запасной вариант, если функции нет
+            info_lines.append((описание[:30] + "...", (200, 200, 200)))
+
+    # Цена (если есть)
+    цена = item_data.get("цена", 0)
+    if цена > 0:
+        info_lines.append((f"Цена: {цена} монет", GOLD))
+
+    # Рассчитываем размер подсказки
+    line_height = 22
+    padding = 10
+    max_width = 0
+
+    # Временно рендерим текст для расчёта ширины
+    for line, _ in info_lines:
+        text_surface = game.font_small.render(line, True, WHITE)
+        max_width = max(max_width, text_surface.get_width())
+
+    tooltip_width = max_width + padding * 2
+    tooltip_height = len(info_lines) * line_height + padding * 2
+
+    # Позиция подсказки (сдвигаем, чтобы не выходила за экран)
+    tooltip_x = x + 15
+    tooltip_y = y - tooltip_height - 10
+
+    # Корректируем, если выходит за левый край
+    if tooltip_x + tooltip_width > WIDTH:
+        tooltip_x = x - tooltip_width - 15
+    # Корректируем, если выходит за верхний край
+    if tooltip_y < 0:
+        tooltip_y = y + 30
+
+    # Рисуем фон подсказки
+    tooltip_rect = pygame.Rect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
+    pygame.draw.rect(game.screen, (0, 0, 0, 230), tooltip_rect)
+    pygame.draw.rect(game.screen, GOLD, tooltip_rect, 2)
+
+    # Рисуем текст
+    text_y = tooltip_y + padding
+    for line, color in info_lines:
+        text_surface = game.font_small.render(line, True, color)
+        game.screen.blit(text_surface, (tooltip_x + padding, text_y))
+        text_y += line_height
