@@ -192,7 +192,7 @@ def show_load_menu(game):
 
     if not saves_info:
         print("   ❌ Нет сохранений!")
-        game.show_message("Нет сохранений!", duration=60)
+        show_message(game, "Нет сохранений!", duration=60)
         return None
 
     scroll_offset = 0

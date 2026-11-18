@@ -150,3 +150,11 @@ def draw_mana_bar(game, x, y, width, height, current, maximum):
 
     mana_text = game.font_small.render(f"{current}/{maximum}", True, WHITE)
     game.screen.blit(mana_text, (x + width // 2 - 30, y + 5))
+
+def show_message(game, text, duration=60):
+    """Показывает сообщение на экране"""
+    message_surface = game.font_medium.render(text, True, BLOOD_RED)
+    message_rect = message_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
+    game.screen.blit(message_surface, message_rect)
+    pygame.display.flip()
+    pygame.time.wait(duration * 10)  # duration в кадрах (60 кадров = 1 сек)

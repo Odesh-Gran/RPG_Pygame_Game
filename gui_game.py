@@ -14,6 +14,7 @@ from ui.panels.quests_panel import draw_quests
 from ui.screens.class_selection import show_class_selection
 from loaders.asset_loader import load_close_icon, load_action_icons, load_backgrounds, load_item_icons, create_placeholder_icon
 from ui.dialogs.save_confirmation import show_save_confirmation
+from ui.widgets import show_message
 
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
@@ -876,14 +877,6 @@ class Game:
             self.add_to_log("Здесь ничего нет...")
 
         время.пройти_время(10)
-
-    def show_message(self, text, duration=60):
-        """Показывает сообщение на экране"""
-        message_surface = font_medium.render(text, True, BLOOD_RED)
-        message_rect = message_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
-        self.screen.blit(message_surface, message_rect)
-        pygame.display.flip()
-        pygame.time.wait(duration * 10)  # duration в кадрах (60 кадров = 1 сек)
 
     def run(self):
         """Главный игровой цикл"""

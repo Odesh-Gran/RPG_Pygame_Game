@@ -9,6 +9,7 @@ from systems.battle_system import BattleSystem
 from ui.dialogs.exit_confirmation import show_exit_confirmation
 from ui.screens.intro import show_intro
 from ui.screens.class_selection import show_class_selection
+from ui.widgets import show_message
 
 def show_main_menu(game):
     """Показывает главное меню и возвращает True (игра запущена) или None (выход)"""
@@ -82,7 +83,7 @@ def show_main_menu(game):
                     saves_info = сохранение.list_saves()
                     if not saves_info:
                         print("❌ Нет сохранённой игры!")
-                        game.show_message("Нет сохранений!", duration=60)
+                        show_message(game, "Нет сохранений!", duration=60)
                         continue
 
                     selected_slot = show_load_menu(game)
