@@ -4,6 +4,7 @@ from config import *
 from systems import merchant as торговец
 from entities import items as предметы
 from ui.widgets import разбить_текст_на_строки
+from systems.merchant import trade_buy_item, trade_sell_item
 
 def draw_quest_trade_menu(game):
     """Рисует меню выбора: Квесты или Торговля"""
@@ -138,25 +139,25 @@ def handle_trade_click(game, pos):
             if item_data[0] == "buy_1":
                 action, предмет, rect = item_data
                 if rect.collidepoint(pos):
-                    game.trade_buy_item(предмет, 1)
+                    trade_buy_item(game, предмет, 1)
                     return
 
             elif item_data[0] == "buy_5":
                 action, предмет, rect = item_data
                 if rect.collidepoint(pos):
-                    game.trade_buy_item(предмет, 5)
+                    trade_buy_item(game, предмет, 5)
                     return
 
             elif item_data[0] == "sell_1":
                 action, предмет, rect, цена = item_data
                 if rect.collidepoint(pos):
-                    game.trade_sell_item(предмет, 1, цена)
+                    trade_sell_item(game, предмет, 1, цена)
                     return
 
             elif item_data[0] == "sell_all":
                 action, предмет, rect, цена, количество = item_data
                 if rect.collidepoint(pos):
-                    game.trade_sell_item(предмет, количество, цена)
+                    trade_sell_item(game, предмет, количество, цена)
                     return
 def draw_trade(game):
     """Отрисовка окна торговца с анимацией"""
