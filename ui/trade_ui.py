@@ -3,6 +3,7 @@ import random
 from config import *
 from systems import merchant as торговец
 from entities import items as предметы
+from ui.widgets import разбить_текст_на_строки
 
 def draw_quest_trade_menu(game):
     """Рисует меню выбора: Квесты или Торговля"""
@@ -441,7 +442,8 @@ def _draw_trade_tips(game, panel_x, panel_y, panel_width, panel_height):
     совет = game.current_tip
     max_width = tips_width - 25
 
-    строки = game._разбить_текст_на_строки(совет, max_width, game.font_small)
+    # Передаем строку "совет", а не объект game
+    строки = разбить_текст_на_строки(совет, max_width, game.font_small)
     строки = строки[:2]
 
     y_offset = tips_y + 38

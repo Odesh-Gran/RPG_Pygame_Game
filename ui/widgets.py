@@ -1,24 +1,19 @@
 import pygame
-from config import WIDTH, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN, HEALTH_BG, HEALTH_YELLOW, HEALTH_RED
+from config import WIDTH, HEIGHT, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN, HEALTH_BG, HEALTH_YELLOW, HEALTH_RED
 
 def draw_item_tooltip(game, item_name, x, y):
     """Рисует всплывающую подсказку с информацией о предмете"""
 
-    # Получаем данные предмета
     from entities import items as предметы
     item_data = предметы.предметы.get(item_name, {})
 
-    # Собираем информацию о предмете
     info_lines = []
 
-    # Название предмета
     info_lines.append(("=== " + item_name + " ===", GOLD))
 
-    # Тип предмета
     item_type = item_data.get("тип", "неизвестно")
     info_lines.append((f"Тип: {item_type}", WHITE))
 
-    # Характеристики в зависимости от типа
     if item_type == "оружие":
         урон = item_data.get("урон", 0)
         тип_оружия = item_data.get("тип_оружия", "одноручное")
@@ -61,30 +56,21 @@ def draw_item_tooltip(game, item_name, x, y):
         else:
             info_lines.append((f"Эффект: {эффект}", GOLD))
 
-    # Описание (если есть)
+    # Описание (если есть) - теперь используем функцию напрямую
     описание = item_data.get("описание", "")
     if описание:
-        # Вспомогательная функция для разбивки текста (если она была в Game)
-        # Если у тебя есть game._разбить_текст_на_строки, используем её:
-        if hasattr(game, '_разбить_текст_на_строки'):
-            desc_lines = game._разбить_текст_на_строки(описание, 250, game.font_small)
-            for line in desc_lines[:2]:  # максимум 2 строки описания
-                info_lines.append((line, (200, 200, 200)))
-        else:
-            # Запасной вариант, если функции нет
-            info_lines.append((описание[:30] + "...", (200, 200, 200)))
+        desc_lines = разбить_текст_на_строки(описание, 250, game.font_small)
+        for line in desc_lines[:2]:  # максимум 2 строки описания
+            info_lines.append((line, (200, 200, 200)))
 
-    # Цена (если есть)
     цена = item_data.get("цена", 0)
     if цена > 0:
         info_lines.append((f"Цена: {цена} монет", GOLD))
 
-    # Рассчитываем размер подсказки
     line_height = 22
     padding = 10
     max_width = 0
 
-    # Временно рендерим текст для расчёта ширины
     for line, _ in info_lines:
         text_surface = game.font_small.render(line, True, WHITE)
         max_width = max(max_width, text_surface.get_width())
@@ -92,28 +78,24 @@ def draw_item_tooltip(game, item_name, x, y):
     tooltip_width = max_width + padding * 2
     tooltip_height = len(info_lines) * line_height + padding * 2
 
-    # Позиция подсказки (сдвигаем, чтобы не выходила за экран)
     tooltip_x = x + 15
     tooltip_y = y - tooltip_height - 10
 
-    # Корректируем, если выходит за левый край
     if tooltip_x + tooltip_width > WIDTH:
         tooltip_x = x - tooltip_width - 15
-    # Корректируем, если выходит за верхний край
     if tooltip_y < 0:
         tooltip_y = y + 30
 
-    # Рисуем фон подсказки
     tooltip_rect = pygame.Rect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
     pygame.draw.rect(game.screen, (0, 0, 0, 230), tooltip_rect)
     pygame.draw.rect(game.screen, GOLD, tooltip_rect, 2)
 
-    # Рисуем текст
     text_y = tooltip_y + padding
     for line, color in info_lines:
         text_surface = game.font_small.render(line, True, color)
         game.screen.blit(text_surface, (tooltip_x + padding, text_y))
         text_y += line_height
+
 
 def draw_health_bar(game, x, y, width, height, current, maximum):
     """Рисует полоску здоровья"""
@@ -136,6 +118,7 @@ def draw_health_bar(game, x, y, width, height, current, maximum):
     health_text = game.font_small.render(f"{current}/{maximum}", True, WHITE)
     game.screen.blit(health_text, (x + width // 2 - 30, y + 5))
 
+
 def draw_mana_bar(game, x, y, width, height, current, maximum):
     """Рисует полоску маны"""
     pygame.draw.rect(game.screen, (40, 40, 60), (x, y, width, height))
@@ -151,10 +134,32 @@ def draw_mana_bar(game, x, y, width, height, current, maximum):
     mana_text = game.font_small.render(f"{current}/{maximum}", True, WHITE)
     game.screen.blit(mana_text, (x + width // 2 - 30, y + 5))
 
+
 def show_message(game, text, duration=60):
     """Показывает сообщение на экране"""
     message_surface = game.font_medium.render(text, True, BLOOD_RED)
     message_rect = message_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
     game.screen.blit(message_surface, message_rect)
     pygame.display.flip()
-    pygame.time.wait(duration * 10)  # duration в кадрах (60 кадров = 1 сек)
+    pygame.time.wait(duration * 10)
+
+
+def разбить_текст_на_строки(text, max_width, font):
+    """Разбивает текст на строки, чтобы каждая помещалась в max_width"""
+    words = text.split(' ')
+    lines = []
+    current_line = ""
+
+    for word in words:
+        test_line = current_line + " " + word if current_line else word
+        if font.size(test_line)[0] <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return lines

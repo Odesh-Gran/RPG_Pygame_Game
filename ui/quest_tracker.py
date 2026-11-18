@@ -1,5 +1,6 @@
 import pygame
 from config import *
+from ui.widgets import разбить_текст_на_строки
 
 def draw_quest_tracker(game):
     """Отображает активные квесты на экране"""
@@ -62,7 +63,7 @@ def draw_quest_tracker(game):
 
         description = квест.get("описание", "")
         # ВНИМАНИЕ: game._разбить_текст_на_строки должен существовать в Game
-        desc_lines = game._разбить_текст_на_строки(description, panel_width - 30, game.font_small)
+        desc_lines = разбить_текст_на_строки(description, panel_width - 30, game.font_small)
         desc_lines = desc_lines[:2]
 
         for line in desc_lines:

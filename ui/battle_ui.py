@@ -2,6 +2,7 @@ import pygame
 from config import *
 from entities import items as предметы
 from ui.widgets import draw_health_bar, draw_mana_bar
+from ui.widgets import разбить_текст_на_строки
 
 
 def draw_battle(game):
@@ -167,7 +168,7 @@ def _draw_enemy_stats(game, card_x, stats_y):
 
 def _draw_enemy_description(game, card_x, card_y, card_height, desc_start_y):
     enemy_description = game.enemy_data.get("описание", "Таинственное создание, полное тёмной энергии.")
-    desc_lines = game._разбить_текст_на_строки(enemy_description, 290, game.font_small)[:4]
+    desc_lines = разбить_текст_на_строки(enemy_description, 290, game.font_small)[:4]
 
     if not desc_lines:
         return
