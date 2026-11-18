@@ -58,6 +58,7 @@ from systems import exploration
 from systems.dungeon_controller import DungeonController
 from systems.video_manager import VideoManager
 from systems.audio import MusicManager
+from systems.crafting import craft_item
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
@@ -1204,69 +1205,6 @@ class Game:
         self.игрок["очки_умений"] -= 1
 
         self.add_to_log(f"Навык {skill_key} повышен до {self.игрок[skill_key]}!")
-        return True
-
-    def craft_item(self, название, рецепт):
-        """
-        Универсальная функция крафта
-        """
-
-        print("\n" + "=" * 40)
-        print("КРАФТ ПРЕДМЕТА:", название)
-        print("=" * 40)
-
-        print(f"Тип рецепта: {type(рецепт)}")
-        print(f"Рецепт: {рецепт}")
-
-        # Определяем тип рецепта
-        if isinstance(рецепт, dict) and 'ресурсы' in рецепт:
-            # Это словарь с ключом 'ресурсы'
-            ресурсы = рецепт['ресурсы']
-            количество = рецепт.get('количество', 1)
-            print(f"Словарь-рецепт. Ресурсы: {ресурсы}, количество: {количество}")
-        elif isinstance(рецепт, list):
-            # Это просто список ресурсов
-            ресурсы = рецепт
-            количество = 1
-            print(f"Список ресурсов: {ресурсы}")
-        else:
-            print(f"Ошибка: непонятный тип рецепта {type(рецепт)}")
-            return False
-
-        print(f"\n🎒 Инвентарь ДО: {self.игрок['инвентарь']}")
-
-        # Проверяем наличие ресурсов
-        инвентарь_копия = self.игрок["инвентарь"].copy()
-
-        for ресурс in ресурсы:
-            if ресурс in инвентарь_копия:
-                индекс = инвентарь_копия.index(ресурс)
-                инвентарь_копия.pop(индекс)
-                print(f"  ✅ Найден {ресурс}")
-            else:
-                print(f"  ❌ НЕ ХВАТАЕТ {ресурс}!")
-                print(f"  Доступные ресурсы: {set(self.игрок['инвентарь'])}")
-                return False
-
-        print(f"\n Все ресурсы есть!")
-
-        # Удаляем ресурсы
-        for ресурс in ресурсы:
-            self.игрок["инвентарь"].remove(ресурс)
-            print(f"  🗑️ Удален {ресурс}")
-
-        # Добавляем результат
-        for i in range(количество):
-            self.игрок["инвентарь"].append(название)
-            print(f"  ➕ Добавлен {название} #{i + 1}")
-
-        print(f"\n🎒 Инвентарь ПОСЛЕ: {self.игрок['инвентарь']}")
-        print("=" * 40)
-        print("✅ КРАФТ УСПЕШНО ЗАВЕРШЕН!")
-        print("=" * 40)
-
-        self.add_to_log(f"Создан {название} x{количество}")
-
         return True
 
     def trade_buy_item(self, предмет, количество):

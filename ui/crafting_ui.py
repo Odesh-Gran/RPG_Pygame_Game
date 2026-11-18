@@ -1,6 +1,7 @@
 import pygame
 from config import *
 from entities import items as предметы
+from systems.crafting import craft_item
 
 def draw_craft(game):
     """Отрисовка окна верстака с категориями и прокруткой"""
@@ -204,5 +205,5 @@ def handle_craft_click(game, pos):
 
     for название, рецепт, btn_rect in game.craft_items:
         if btn_rect.collidepoint(pos):
-            game.craft_item(название, рецепт)
+            craft_item(game, название, рецепт)
             return
