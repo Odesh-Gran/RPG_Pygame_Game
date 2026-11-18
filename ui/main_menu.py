@@ -7,6 +7,8 @@ from entities.player import создать_нового_игрока
 from systems.inventory_system import InventorySystem
 from systems.battle_system import BattleSystem
 from ui.dialogs.exit_confirmation import show_exit_confirmation
+from ui.screens.intro import show_intro
+from ui.screens.class_selection import show_class_selection
 
 def show_main_menu(game):
     """Показывает главное меню и возвращает True (игра запущена) или None (выход)"""
@@ -57,10 +59,10 @@ def show_main_menu(game):
                     game.battle = BattleSystem(game.игрок, game)
                     game.игра_загружена = True
 
-                    if not game.show_intro():
+                    if not show_intro(game):
                         return False
 
-                    выбранный_класс = game.show_class_selection()
+                    выбранный_класс = show_class_selection(game)
                     if выбранный_класс:
                         game.apply_class(выбранный_класс)
                         game.quest_system.добавить_квест(game.игрок, "основной_начало")
