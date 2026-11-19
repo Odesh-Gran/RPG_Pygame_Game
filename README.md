@@ -19,7 +19,7 @@ RPG-игра на Python (Pygame): 12 локаций, боевая систем�
 ## 🛠 Стек
 
 - Python 3.12
-- Pygame
+- Pygame (pygame-ce)
 - pyvidplayer2 (видео-переходы)
 - requests (API-запросы)
 - JSON (сохранения, данные)
@@ -51,12 +51,13 @@ RPG-игра на Python (Pygame): 12 локаций, боевая систем�
 
 ---
 
-## 🏗 Структура проекта (после рефакторинга)
+## 🏗 Структура проекта
 
 Проект имеет модульную архитектуру: сущности, игровые системы и интерфейс разделены по отдельным пакетам.
+
 ```
 game/
-├── main.py / gui_game.py # Точка входа (игровой цикл)
+├── gui_game.py # Главный файл (UI + игровой цикл)
 ├── config.py # Настройки (размер экрана, цвета, шрифты)
 ├── game_api.py # Клиент для Game API
 ├── token.json # Токен авторизации
@@ -79,18 +80,39 @@ game/
 │ ├── exploration.py # Исследование данжей
 │ ├── randomizer.py # Рандомизация событий
 │ ├── audio.py # Менеджер музыки
-│ └── video_manager.py # Менеджер видео-переходов
+│ ├── video_manager.py # Менеджер видео-переходов
+│ ├── loot_manager.py # Управление лутом
+│ ├── rest_system.py # Отдых в убежище
+│ ├── search_system.py # Обыск локаций
+│ └── skills_system.py # Навыки и их эффекты
 │
 ├── ui/ # Интерфейс
 │ ├── battle_ui.py # Отрисовка боя
+│ ├── battle_intro.py # Анимация начала боя
 │ ├── inventory_ui.py # Инвентарь
 │ ├── skills_menu.py # Меню навыков
 │ ├── save_menus.py # Меню сохранений
 │ ├── quest_tracker.py # Трекер квестов
-│ └── login_screen.py # Экран логина
+│ ├── login_screen.py # Экран логина
+│ ├── map_ui.py # Карта мира
+│ ├── trade_ui.py # Торговля
+│ ├── chest_ui.py # Сундук
+│ ├── crafting_ui.py # Верстак
+│ ├── hud.py # HUD (статус, локация, действия)
+│ ├── main_menu.py # Главное меню
+│ ├── widgets.py # Вспомогательные виджеты
+│ ├── sprites.py # Спрайты
+│ ├── dialogs/ # Диалоговые окна
+│ │ └── exit_dialog.py
+│ └── panels/ # Панели
+│ ├── loot_panel.py
+│ ├── search_bar.py
+│ ├── quests_panel.py
+│ └── log_panel.py
 │
 ├── loaders/ # Загрузчики
 │ ├── skill_loader.py # Загрузка навыков
+│ ├── asset_loader.py # Загрузка ресурсов
 │ └── save_manager.py # Сохранения
 │
 ├── data/ # Игровые данные (JSON)
