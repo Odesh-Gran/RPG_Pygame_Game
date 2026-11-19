@@ -22,6 +22,34 @@ class GameAPI:
                 return self.token
         return None
 
+    def verify_token(self, token=None):
+        """Проверяет, действителен ли токен на сервере.
+        Возвращает True, если сервер принял токен (200), иначе False."""
+        token = token or self.token
+        if not token:
+            return False
+        try:
+            response = requests.get(
+                f"{self.base_url}/achievements",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5
+            )
+            if response.status_code == 200:
+                self.token = token
+                return True
+            elif response.status_code == 401:
+                print("⚠️ Токен недействителен (401)")
+                return False
+            else:
+                print(f"⚠️ Сервер вернул {response.status_code} при проверке токена")
+                return False
+        except requests.exceptions.ConnectionError:
+            print("⚠️ Не удалось подключиться к серверу для проверки токена")
+            return False
+        except requests.exceptions.Timeout:
+            print("⚠️ Таймаут при проверке токена")
+            return False
+
     def login(self, username, password):
         try:
             response = requests.post(

@@ -1,5 +1,6 @@
 # ===== СТАНДАРТНЫЕ БИБЛИОТЕКИ =====
 import sys
+import os
 
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
 # noinspection PyUnresolvedReferences
@@ -7,6 +8,8 @@ from pyvidplayer2 import Video
 
 # ===== КОНФИГУРАЦИЯ =====
 from config import *
+from game_api import GameAPI
+
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
@@ -24,7 +27,6 @@ from systems.dungeon_controller import DungeonController
 from systems.video_manager import VideoManager
 from systems.audio import MusicManager
 from systems.skills_system import upgrade_skill, learn_skill
-
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
@@ -64,11 +66,10 @@ from ui.sprites import load_player_sprite
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 
 # ===== ИНИЦИАЛИЗАЦИЯ =====
+# ВАЖНО: окно здесь НЕ создаём!
+# Окно логина создаст LoginScreen, окно игры — Game.__init__.
 pygame.init()
 pygame.mixer.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("castle-survival v0.1")
-clock = pygame.time.Clock()
 
 # ===== СОЗДАЁМ ШРИФТЫ =====
 fonts = get_fonts()
@@ -88,8 +89,17 @@ class Game:
         # ========== НАСТРОЙКИ ЭКРАНА ==========
         self.WIDTH = 1920
         self.HEIGHT = 1080
-        self.fullscreen = False
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.fullscreen = True
+        self.screen = pygame.display.set_mode(
+            (self.WIDTH, self.HEIGHT),
+            pygame.FULLSCREEN | pygame.SCALED
+        )
+        pygame.display.set_caption("castle-survival v0.1")
+        try:
+            icon = pygame.image.load("assets/icon.png").convert_alpha()
+            pygame.display.set_icon(icon)
+        except Exception as e:
+            print(f"⚠️ Не удалось загрузить иконку: {e}")
         self.clock = pygame.time.Clock()
 
         # ========== ШРИФТЫ ==========
@@ -163,10 +173,17 @@ class Game:
             громкость=0.3,
             включена=True
         )
-
+        self.logout_requested = False
         # ========== ГЛАВНОЕ МЕНЮ ==========
         menu_result = show_main_menu(self)
         print(f"🟢 Результат show_main_menu(): {menu_result}")
+
+        # Пользователь вышел из аккаунта
+        if menu_result == "logout":
+            print("🔓 Запрошен выход из аккаунта")
+            self.игра_активна = False
+            self.logout_requested = True
+            return
 
         if menu_result is None or menu_result is False:
             print("🔴 Выход из главного меню, игра завершается")
@@ -371,11 +388,24 @@ class Game:
         self.fullscreen = not self.fullscreen
 
         if self.fullscreen:
-            self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+            self.screen = pygame.display.set_mode(
+                (self.WIDTH, self.HEIGHT),
+                pygame.FULLSCREEN | pygame.SCALED
+            )
             print("🖥️ Полноэкранный режим включен")
         else:
-            self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            self.screen = pygame.display.set_mode(
+                (self.WIDTH, self.HEIGHT)
+            )
             print("🖥️ Оконный режим включен")
+
+        # Возвращаем заголовок и иконку после пересоздания окна
+        pygame.display.set_caption("castle-survival v0.1")
+        try:
+            icon = pygame.image.load("assets/icon.png").convert_alpha()
+            pygame.display.set_icon(icon)
+        except Exception as e:
+            print(f"⚠️ Не удалось загрузить иконку: {e}")
 
     def apply_class(self, название_класса):
         from systems import classes as классы
@@ -966,7 +996,7 @@ class Game:
 
             # Обновление экрана
             pygame.display.flip()
-            clock.tick(FPS)
+            self.clock.tick(FPS)
 
     def _handle_scroll(self, y):
         """Обработка прокрутки колесиком мыши (вынесено для читаемости)"""
@@ -1359,21 +1389,52 @@ class Game:
 
 
 if __name__ == "__main__":
-    from game_api import GameAPI  # Добавляем импорт
+    from game_api import GameAPI
 
-    # Создаём экземпляр API
     api = GameAPI()
 
-    # Показываем окно входа (передаём API)
-    login = LoginScreen(api=api)
-    token = login.run()
+    while True:
+        token = None
 
-    if token:
+        # ===== 1. Автологин по сохранённому токену =====
+        saved_token = api.load_token()
+        if saved_token:
+            print("🔑 Найден сохранённый токен, проверяем на сервере...")
+            if api.verify_token(saved_token):
+                token = saved_token
+                print("✅ Токен действителен — вход без пароля")
+            else:
+                print("⚠️ Токен недействителен, потребуется вход")
+                try:
+                    os.remove(api.token_file)
+                except OSError:
+                    pass
+                api.token = None
+        else:
+            print("🔐 Сохранённого токена нет")
+
+        # ===== 2. Окно логина, если токена нет =====
+        if not token:
+            login = LoginScreen(api=api)
+            token = login.run()
+
+        if not token:
+            print("❌ Вход не выполнен. Выход.")
+            pygame.quit()
+            sys.exit()
+
+        # ===== 3. Запуск игры =====
         print("✅ Вход выполнен! Запуск игры...")
-        # Токен уже сохранён в api через LoginScreen
-        game = Game(api=api)  # Передаём API в игру
+        game = Game(api=api)
         game.run()
-    else:
-        print("❌ Вход не выполнен. Выход.")
-        pygame.quit()
-        sys.exit()
+
+        # ===== 4. Проверяем, не запрошен ли logout =====
+        if getattr(game, "logout_requested", False):
+            print("🔓 Выход из аккаунта — возвращаемся к логину")
+            pygame.display.quit()
+            continue   # цикл заново → покажет LoginScreen
+        else:
+            break      # обычный выход
+
+    pygame.quit()
+    sys.exit()

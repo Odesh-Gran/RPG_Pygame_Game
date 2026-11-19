@@ -1,23 +1,22 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+# ===== Секреты и локальные данные =====
+remembered_account.json
+token.json
 
-# Виртуальное окружение
-.venv/
-venv/
-env/
-
-# IDE
+# PyCharm / IDE
 .idea/
 .vscode/
 
-# Сохранения и токены (личное)
-token.json
-save_*.json
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+env/
+
+# Логи
 *.log
 
-# OS
+# Системные
 .DS_Store
 Thumbs.db

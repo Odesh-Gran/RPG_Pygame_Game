@@ -1,4 +1,5 @@
 import pygame
+import os
 from config import *
 from loaders import save_manager as сохранение
 from ui.save_menus import show_load_menu
@@ -36,6 +37,7 @@ def show_main_menu(game):
     new_rect = pygame.Rect(center_x, y, 300, 60)
     load_rect = pygame.Rect(center_x, y + 80, 300, 60)
     exit_rect = pygame.Rect(center_x, y + 160, 300, 60)
+    logout_rect = pygame.Rect(center_x, y + 240, 300, 60)
 
     while menu_active:
         frame_count += 1
@@ -120,6 +122,24 @@ def show_main_menu(game):
                     if show_exit_confirmation(game):
                         print("   ⚠️ Возвращаем None (выход из меню)")
                         return None
+                    else:
+                        continue
+
+                elif logout_rect.collidepoint(mouse_pos):
+                    print("🔓 Нажата кнопка ВЫЙТИ ИЗ АККАУНТА")
+                    # Подтверждение
+                    if show_exit_confirmation(game):
+                        # Удаляем токен
+                        try:
+                            if os.path.exists(game.api.token_file):
+                                os.remove(game.api.token_file)
+                                print("🗑️ token.json удалён")
+                        except OSError as e:
+                            print(f"⚠️ Не удалось удалить токен: {e}")
+                        if game.api:
+                            game.api.token = None
+                        print("   ⚠️ Возвращаем 'logout' (возврат к логину)")
+                        return "logout"
                     else:
                         continue
 
