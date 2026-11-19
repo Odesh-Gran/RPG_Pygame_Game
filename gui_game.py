@@ -1,45 +1,11 @@
 # ===== СТАНДАРТНЫЕ БИБЛИОТЕКИ =====
-import json
-import math
-import random
 import sys
 
-# ===== ДИОЛОГИ+СОХРАНЕНИЯ =====
-from ui.dialogs.exit_dialog import show_exit_dialog
-from ui.dialogs.exit_confirmation import show_exit_confirmation
-# ===== ПАНЕЛЬ(LOOT,QUEST,SEARCH) =====
-from ui.panels.loot_panel import draw_loot_panel
-from ui.panels.search_bar import draw_search_bar
-from ui.panels.quests_panel import draw_quests
-from ui.screens.class_selection import show_class_selection
-from loaders.asset_loader import load_close_icon, load_action_icons, load_backgrounds, load_item_icons, create_placeholder_icon
-from ui.dialogs.save_confirmation import show_save_confirmation
-from ui.widgets import show_message
-from ui.widgets import разбить_текст_на_строки
-
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
-# noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
 
-# ===== UI =====
-from ui.battle_ui import draw_battle
-from ui.main_menu import show_main_menu
-from ui.map_ui import draw_map, handle_map_click
-from ui.sprites import load_player_sprite, load_enemy_sprite_by_name
-from ui.battle_intro import start_battle_animation, update_battle_animation, draw_battle_start_animation
-from ui.hud import draw_status, draw_location, draw_actions
-from ui.chest_ui import draw_chest, handle_chest_click
-from ui.trade_ui import draw_quest_trade_menu, handle_trade_click, draw_trade
-from ui.save_menus import show_save_menu, show_load_menu, show_save_menu_for_exit
-from ui.crafting_ui import draw_craft, handle_craft_click
-from ui.inventory_ui import draw_inventory, handle_inventory_click
-from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
-from ui.skills_menu import draw_skills_menu
-from ui.login_screen import LoginScreen
-from ui.widgets import draw_item_tooltip
-from ui.widgets import draw_health_bar, draw_mana_bar
-from ui.battle_ui import draw_battle, draw_skill_buttons
-
+# ===== КОНФИГУРАЦИЯ =====
+from config import *
 
 # ===== ИГРОВЫЕ СУЩНОСТИ (entities) =====
 from entities import player as игрок
@@ -48,28 +14,53 @@ from entities import locations as локации
 from entities import items as предметы
 
 # ===== ИГРОВЫЕ СИСТЕМЫ (systems) =====
-from systems.battle_system import BattleSystem
+from systems.battle_system import BattleSystem, start_battle_gui, handle_battle_click, battle_flee, battle_victory
 from systems.inventory_system import InventorySystem
 from systems.quest_system import QuestSystem
 from systems import crafting as верстак
-from systems import merchant as торговец
-from systems import barriers as барьеры
 from systems import time_system as время
-from systems import exploration
 from systems.dungeon_controller import DungeonController
 from systems.video_manager import VideoManager
 from systems.audio import MusicManager
-from systems.crafting import craft_item
 from systems.skills_system import upgrade_skill, learn_skill
-from systems.battle_system import start_battle_gui, handle_battle_click, battle_flee, battle_victory
+
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
-from loaders import save_manager as сохранение
+from loaders.asset_loader import (
+    load_close_icon, load_action_icons, load_backgrounds,
+    load_item_icons,
+)
 
+# ===== UI: ДИАЛОГИ И ЭКРАНЫ =====
+from ui.dialogs.exit_dialog import show_exit_dialog
+from ui.login_screen import LoginScreen
+from ui.main_menu import show_main_menu
+
+# ===== UI: ПАНЕЛИ И ТРЕКЕРЫ =====
+from ui.panels.loot_panel import draw_loot_panel
+from ui.panels.search_bar import draw_search_bar
+from ui.panels.quests_panel import draw_quests
+from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
+
+# ===== UI: ОСНОВНЫЕ ЭКРАНЫ И БОЙ =====
+from ui.battle_ui import draw_battle
+from ui.battle_intro import update_battle_animation, draw_battle_start_animation
+from ui.map_ui import draw_map, handle_map_click
+from ui.hud import draw_status, draw_location, draw_actions
+from ui.chest_ui import draw_chest, handle_chest_click
+from ui.trade_ui import draw_quest_trade_menu, handle_trade_click, draw_trade
+from ui.save_menus import show_save_menu
+from ui.crafting_ui import draw_craft, handle_craft_click
+from ui.inventory_ui import draw_inventory, handle_inventory_click
+from ui.skills_menu import draw_skills_menu
+
+# ===== UI: ВИДЖЕТЫ И СПРАЙТЫ =====
+from ui.widgets import разбить_текст_на_строки
+from ui.sprites import load_player_sprite
+
+# ===== КОНСТАНТЫ =====
 EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
-# ===== ИМПОРТ НАСТРОЕК =====
-from config import *
 
 # ===== ИНИЦИАЛИЗАЦИЯ =====
 pygame.init()
@@ -87,20 +78,20 @@ font_large = fonts["large"]
 font_emoji = pygame.font.Font(EMOJI_FONT_PATH, 28)
 
 class Game:
-    def __init__(self,api=None):
+    def __init__(self, api=None):
         """Инициализация игры"""
+        # ========== API И АВТОРИЗАЦИЯ ==========
         self.api = api
-        self.token = self.api.token if self.api else None  # берём токен из api
+        self.token = self.api.token if self.api else None
+
         # ========== НАСТРОЙКИ ЭКРАНА ==========
         self.WIDTH = 1920
         self.HEIGHT = 1080
         self.fullscreen = False
-
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-
         self.clock = pygame.time.Clock()
 
-        # ========== ШРИФТЫ (прокидываем внутрь класса) ==========
+        # ========== ШРИФТЫ ==========
         self.font_tiny = font_tiny
         self.font_small = font_small
         self.font_medium = font_medium
@@ -108,29 +99,24 @@ class Game:
 
         # ========== ОСНОВНЫЕ ПАРАМЕТРЫ ИГРЫ ==========
         from entities.player import создать_нового_игрока
-        self.игрок = создать_нового_игрока()  # 👈 ИЗМЕНЕНО!
+        self.игрок = создать_нового_игрока()
         self.текущая_локация = "Убежище"
         self.игра_активна = True
         self.режим = "игра"
-
-        # ===== ФЛАГ ЗАГРУЗКИ ИГРЫ =====  #
         self.игра_загружена = False
+        self.previous_mode = "игра"
 
-        # ==== Добавляется квест ====
+        # ========== ИГРОВЫЕ СИСТЕМЫ ==========
         self.quest_system = QuestSystem()
+        self.battle = BattleSystem(self.игрок, self)
+        self.dungeon = DungeonController(self)
 
-        # ========== ХРАНИЛИЩА ==========
+        # ========== ХРАНИЛИЩА И ИНТЕРФЕЙС ==========
         self.chest_inventory = []
-
-        # ========== ИНТЕРФЕЙС ==========
         self.buttons = []
         self.btn_new = None
         self.btn_load = None
         self.btn_exit = None
-
-        # ========== ЗАГРУЗКА РЕСУРСОВ ==========
-        self.close_icon = None
-        load_close_icon(self)
 
         # ========== ЗАГРУЗКА НАВЫКОВ ==========
         self.current_skill_tab = "prof"
@@ -144,12 +130,13 @@ class Game:
         # ========== ИКОНКИ ПРЕДМЕТОВ ==========
         self.item_icons = {}
         load_item_icons(self)
-        # ========== СИСТЕМА ИНВЕНТАРЯ ==========
         self.inventory = InventorySystem(self.игрок, self.item_icons)
 
-        # ===== МУЗЫКА =====
-        # Оставляем только словарь с треками.
-        # Настройки (громкость, вкл/выкл, текущий плейлист) теперь живет внутри MusicManager.
+        # ========== ЗАГРУЗКА РЕСУРСОВ ==========
+        self.close_icon = None
+        load_close_icon(self)
+
+        # ========== МУЗЫКА ==========
         музыка_локаций = {
             "Холл": ["assets/music/hall_1.mp3"],
             "Кухня": ["assets/music/kitchen_1.mp3"],
@@ -170,40 +157,32 @@ class Game:
             "бой": ["assets/music/battle_1.mp3"],
             "меню": ["assets/music/menu_1.mp3"],
         }
-
-        # Создаем объект менеджера музыки, передаем ему треки и настройки
         self.music = MusicManager(
             музыка_локаций=музыка_локаций,
             громкость=0.3,
             включена=True
         )
 
-        # ========== СИСТЕМА БОЯ ==========
-        self.battle = BattleSystem(self.игрок, self)
-
-        # ========== КОНТРОЛЛЕР ДАНЖЕЙ ==========   #
-        self.dungeon = DungeonController(self)
-
         # ========== ГЛАВНОЕ МЕНЮ ==========
         menu_result = show_main_menu(self)
         print(f"🟢 Результат show_main_menu(): {menu_result}")
 
-        # ===== ЕСЛИ ВЫХОД ИЗ МЕНЮ - ПРЕРЫВАЕМ ИНИЦИАЛИЗАЦИЮ =====
         if menu_result is None or menu_result is False:
             print("🔴 Выход из главного меню, игра завершается")
             self.игра_активна = False
-            return  # ← ВАЖНО! ПРЕРЫВАЕМ ВЫПОЛНЕНИЕ __init__
+            return
 
-        # ========== ФОНЫ ЛОКАЦИЙ ==========
+        self.игра_загружена = True
+
+        # ========== ФОНЫ И ВИДЕО ==========
         self.backgrounds = {}
         load_backgrounds(self)
-
-        # ===== ВИДЕО-ПЕРЕХОДЫ =====
         self.video_manager = VideoManager()
 
         # ========== ИКОНКИ ДЕЙСТВИЙ ==========
         self.action_icons = {}
         load_action_icons(self)
+
         # ========== СИСТЕМА КРАФТА ==========
         self.craft_categories = {
             "ОРУЖИЕ": ["лезвие", "призрачный меч"],
@@ -233,39 +212,32 @@ class Game:
         self.transition_speed = 7
         self.next_location = None
 
-        # ===== ПОСЛЕ ВЫХОДА ИЗ МЕНЮ =====
-        if menu_result is not None and menu_result is not False:
-            self.игра_загружена = True  # 👈 ДОБАВЬТЕ!
-
         # ========== ПЕРСОНАЖ ==========
         self.player_size = 200
         self.player_pos = [WIDTH // 5 - self.player_size // 2, HEIGHT // 1.5 - self.player_size // 2]
         self.player_sprite = None
         load_player_sprite(self)
 
-
         # ========== ВРАГ ==========
         self.enemy_size = 190
         self.enemy_pos = [WIDTH // 2 - self.enemy_size // 2, 100]
         self.enemy_sprite = None
         self.current_enemy_for_display = None
-        #self.load_enemy_sprite()
 
-
-        # ===== АНИМАЦИЯ НАЧАЛА БОЯ =====
+        # ========== АНИМАЦИЯ НАЧАЛА БОЯ ==========
         self.battle_start_animation = False
         self.battle_start_timer = 0
         self.battle_start_alpha = 0
         self.battle_start_scale = 0.5
 
-        # ===== ПАНЕЛЬ ПОЛУЧЕНИЯ ЛУТА =====
+        # ========== ПАНЕЛЬ ЛУТА ==========
         self.loot_panel_active = False
         self.loot_items = []
         self.loot_exp = 0
         self.loot_rare_item = None
         self.loot_animation_progress = 0
 
-        # ======= БОЕВЫЕ ПАРАМЕТРЫ (для совместимости) ========
+        # ========== БОЕВЫЕ ПАРАМЕТРЫ (для совместимости) ==========
         self.blocking = False
         self.rage_active = False
         self.enemy_bleed_duration = 0
@@ -276,20 +248,18 @@ class Game:
         self.vampirism_duration = 0
         self.revive_used = False
 
-        # ===== ШКАЛА ПРОГРЕССА ОБЫСКА =====
+        # ========== ШКАЛА ОБЫСКА ==========
         self.обыск_активен = False
         self.обыск_прогресс = 0
         self.обыск_таймер = 0
-        self.обыск_длительность = 60  # 3 секунды при 60 FPS
+        self.обыск_длительность = 60
         self.обыск_x = WIDTH // 2 - 200
         self.обыск_y = HEIGHT // 2 + 100
 
-        # ===== ОТОБРАЖЕНИЕ КВЕСТОВ НА ЭКРАНЕ =====
+        # ========== ОТОБРАЖЕНИЕ КВЕСТОВ ==========
         self.показывать_квесты = True
         self.квесты_позиция_x = WIDTH - 340
         self.квесты_позиция_y = 80
-
-        self.previous_mode = "игра"
 
 
     def show_loot_panel(self, items, exp, rare_item=None):
@@ -724,40 +694,22 @@ class Game:
 
                 break
 
-
     def rest_in_hub(self):
-        """Отдых в убежище — полное восстановление (только 1 раз в день)"""
-
-        # Получаем текущий день
         текущий_день = время.получить_день()
-
-        # Проверяем, отдыхал ли игрок сегодня
         if hasattr(self, 'last_rest_day') and self.last_rest_day == текущий_день:
             self.add_to_log("Ты уже отдыхал сегодня! Отдохнуть можно только раз в день.")
             print("❌ Отдых недоступен - уже отдыхал сегодня")
             return
 
-        # Отдыхаем
         self.игрок["здоровье"] = self.игрок["макс_здоровье"]
         self.inventory.update_max_health()
-
         if "мана" in self.игрок:
             self.игрок["мана"] = self.игрок["макс_мана"]
 
-        # Запоминаем день отдыха
         self.last_rest_day = текущий_день
-
-        # Проходит время (1 час)
-        время.пройти_время(60)
-
+        время.пройти_время(300)
         self.add_to_log("Ты отдохнул в убежище и полностью восстановил силы!")
         print(f"🛌 Игрок отдохнул в убежище. День отдыха: {текущий_день}")
-
-        # ДИАГНОСТИКА
-        print("=== ПОСЛЕ ОТДЫХА В ХАБЕ ===")
-        print(f"❤️ Здоровье: {self.игрок['здоровье']} / {self.игрок['макс_здоровье']}")
-        print(f"💙 Мана:     {self.игрок['мана']} / {self.игрок['макс_мана']}")
-        print(f"📅 День отдыха: {self.last_rest_day}")
 
     def open_chest(self):
         """Открыть сундук — показать окно хранилища"""
@@ -801,6 +753,13 @@ class Game:
                         from entities import items as предметы
                         данные = предметы.предметы.get(предмет, {})
                         тип_предмета = данные.get("тип", "")
+
+                        # 👇 ОТЛАДКА
+                        print(f"   🔍 Найден предмет: {предмет}")
+                        print(f"   🔍 Тип предмета: '{тип_предмета}'")
+                        print(f"   🔍 'ежедневные_квесты' в игроке: {'ежедневные_квесты' in self.игрок}")
+                        if "ежедневные_квесты" in self.игрок:
+                            print(f"   🔍 Список ежедневных квестов: {self.игрок['ежедневные_квесты']}")
 
                         # Если это ресурс - обновляем квест "Собиратель дня"
                         if тип_предмета == "ресурс":
@@ -934,6 +893,11 @@ class Game:
                     self.last_rest_day = None
                 self.add_to_log(f"Наступил новый день! (День {текущий_день})")
                 print(f"🌅 Новый день! Отдых снова доступен.")
+
+                # 👇 ДОБАВЬ ЭТО
+                self.quest_system.загрузить_ежедневные_квесты(self.игрок)
+                print("📅 Ежедневные квесты обновлены!")
+
                 предыдущий_день = текущий_день
 
             # ===== ОБНОВЛЯЕМ ШКАЛУ ОБЫСКА =====

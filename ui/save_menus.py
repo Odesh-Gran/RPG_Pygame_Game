@@ -3,6 +3,7 @@ import sys
 from config import *
 from loaders import save_manager as сохранение
 from ui.dialogs.save_confirmation import show_save_confirmation
+from ui.widgets import show_message
 from entities import items as предметы # если вдруг понадобится
 import json
 
