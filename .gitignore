@@ -20,3 +20,6 @@ env/
 # Системные
 .DS_Store
 Thumbs.db
+
+saves/*
+!saves/.gitkeep
