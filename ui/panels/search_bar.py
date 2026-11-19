@@ -64,3 +64,11 @@ def draw_search_bar(game):
     glow_rect = pygame.Rect(x - 4, y - 4, ширина + 8, высота + 8)
     glow_alpha = int(50 + 100 * abs(pygame.time.get_ticks() % 500 - 250) / 250)
     pygame.draw.rect(game.screen, (GOLD[0], GOLD[1], GOLD[2], glow_alpha), glow_rect, 2)
+
+def запустить_шкалу_обыска(game):
+    """Запускает анимацию шкалы прогресса обыска"""
+    game.обыск_активен = True
+    game.обыск_прогресс = 0
+    game.обыск_таймер = 0
+    game.обыск_длительность = 60
+    print("🔍 Шкала обыска запущена!")

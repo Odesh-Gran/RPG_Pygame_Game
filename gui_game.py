@@ -28,6 +28,8 @@ from systems.video_manager import VideoManager
 from systems.audio import MusicManager
 from systems.skills_system import upgrade_skill, learn_skill
 from systems.loot_manager import show_loot_panel, close_loot_panel
+from systems.rest_system import rest_in_hub
+from systems.search_system import выполнить_обыск
 
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
@@ -44,10 +46,11 @@ from ui.main_menu import show_main_menu
 
 # ===== UI: ПАНЕЛИ И ТРЕКЕРЫ =====
 from ui.panels.loot_panel import draw_loot_panel
-from ui.panels.search_bar import draw_search_bar
+from ui.panels.search_bar import draw_search_bar, запустить_шкалу_обыска
 from ui.panels.quests_panel import draw_quests
 from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
 from ui.panels.log_panel import draw_log_panel
+
 
 # ===== UI: ОСНОВНЫЕ ЭКРАНЫ И БОЙ =====
 from ui.battle_ui import draw_battle
@@ -585,7 +588,7 @@ class Game:
                         break
 
                 # Запускаем шкалу прогресса
-                self.запустить_шкалу_обыска()
+                запустить_шкалу_обыска(self)
                 draw_status(self)
                 pygame.display.flip()
                 return
@@ -697,7 +700,7 @@ class Game:
             # 12. ОТДЫХ В ХАБЕ (кнопка "о_хаб")
             # ============================================================
             elif action == "о_хаб":
-                self.rest_in_hub()
+                rest_in_hub(self)
 
             # ============================================================
             # 13. СУНДУК (кнопка "я")
@@ -707,23 +710,6 @@ class Game:
 
             break
 
-    def rest_in_hub(self):
-        текущий_день = время.получить_день()
-        if hasattr(self, 'last_rest_day') and self.last_rest_day == текущий_день:
-            self.add_to_log("Ты уже отдыхал сегодня! Отдохнуть можно только раз в день.")
-            print("❌ Отдых недоступен - уже отдыхал сегодня")
-            return
-
-        self.игрок["здоровье"] = self.игрок["макс_здоровье"]
-        self.inventory.update_max_health()
-        if "мана" in self.игрок:
-            self.игрок["мана"] = self.игрок["макс_мана"]
-
-        self.last_rest_day = текущий_день
-        время.пройти_время(300)
-        self.add_to_log("Ты отдохнул в убежище и полностью восстановил силы!")
-        print(f"🛌 Игрок отдохнул в убежище. День отдыха: {текущий_день}")
-
     def open_chest(self):
         """Открыть сундук — показать окно хранилища"""
         self.режим = "сундук"
@@ -731,66 +717,6 @@ class Game:
         # Если сундук ещё не инициализирован, создаём
         if not hasattr(self, 'chest_inventory'):
             self.chest_inventory = []  # список предметов в сундуке
-
-    def запустить_шкалу_обыска(self):
-        """Запускает анимацию шкалы прогресса обыска"""
-        self.обыск_активен = True
-        self.обыск_прогресс = 0
-        self.обыск_таймер = 0
-        self.обыск_длительность = 60  # 3 секунды при 60 FPS
-        print("🔍 Шкала обыска запущена!")
-
-    def выполнить_обыск(self):
-        """Выполняет обыск (вызывается после завершения шкалы)"""
-        print("🔍 ВЫПОЛНЯЕМ ОБЫСК")
-
-        from systems import randomizer as рандомайзер
-        локация_данные = локации.локации[self.текущая_локация]
-        событие = рандомайзер.выбрать_событие(локация_данные)
-
-        if событие == "враг" and локация_данные.get("возможные_враги", []):
-            враг = рандомайзер.выбрать_врага(локация_данные["возможные_враги"])
-            self.add_to_log(f"Нападает: {враг.replace('_', ' ')}!")
-            start_battle_gui(self, враг)
-
-        elif событие == "предмет" and локация_данные.get("возможные_предметы", {}):
-            предмет = рандомайзер.выбрать_предмет(локация_данные["возможные_предметы"])
-            if предмет:
-                self.inventory.add_item(предмет)
-                self.add_to_log(f"Ты нашёл: {предмет}!")
-
-                # 👇 Обновляем ежедневные квесты (находка предмета)
-                if hasattr(self, 'quest_system') and hasattr(self, 'игрок'):
-                    if "ежедневные_квесты" in self.игрок:
-                        # Проверяем тип предмета
-                        from entities import items as предметы
-                        данные = предметы.предметы.get(предмет, {})
-                        тип_предмета = данные.get("тип", "")
-
-                        # 👇 ОТЛАДКА
-                        print(f"   🔍 Найден предмет: {предмет}")
-                        print(f"   🔍 Тип предмета: '{тип_предмета}'")
-                        print(f"   🔍 'ежедневные_квесты' в игроке: {'ежедневные_квесты' in self.игрок}")
-                        if "ежедневные_квесты" in self.игрок:
-                            print(f"   🔍 Список ежедневных квестов: {self.игрок['ежедневные_квесты']}")
-
-                        # Если это ресурс - обновляем квест "Собиратель дня"
-                        if тип_предмета == "ресурс":
-                            завершенные = self.quest_system.обновить_ежедневный_прогресс(
-                                self.игрок,
-                                "найти",
-                                предмет
-                            )
-                            if завершенные:
-                                for квест_id in завершенные:
-                                    for q in self.quest_system.ежедневные_квесты:
-                                        if q.get("id") == квест_id:
-                                            self.add_to_log(f"📅 Ежедневный квест выполнен: {q['название']}")
-                                            break
-        else:
-            self.add_to_log("Здесь ничего нет...")
-
-        время.пройти_время(10)
 
     def run(self):
         """Главный игровой цикл"""
@@ -925,7 +851,7 @@ class Game:
                 if self.обыск_прогресс >= 1:
                     self.обыск_активен = False
                     self.обыск_прогресс = 1
-                    self.выполнить_обыск()
+                    выполнить_обыск(self)
 
             # ============================================================
             # 5. ОБНОВЛЕНИЕ АНИМАЦИЙ
