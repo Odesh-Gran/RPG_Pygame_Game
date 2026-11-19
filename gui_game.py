@@ -447,13 +447,13 @@ class Game:
 
     def handle_quest_trade_click(self, pos):
         """Обрабатывает клики в меню выбора между квестами и торговлей"""
-        print(f"🔄 handle_quest_trade_click ВЫЗВАНА! pos={pos}")  # 👈 ДОБАВЬТЕ
-        print(f"   Кнопок в self.quest_trade_buttons: {len(self.quest_trade_buttons)}")  # 👈 ДОБАВЬТЕ
+        print(f"🔄 handle_quest_trade_click ВЫЗВАНА! pos={pos}")
+        print(f"   Кнопок в self.quest_trade_buttons: {len(self.quest_trade_buttons)}")
 
         for action, rect in self.quest_trade_buttons:
-            print(f"   Проверяем: {action}, rect={rect}")  # 👈 ДОБАВЬТЕ
+            print(f"   Проверяем: {action}, rect={rect}")
             if rect.collidepoint(pos):
-                print(f"   ✅ КЛИК ПО: {action}")  # 👈 ДОБАВЬТЕ
+                print(f"   ✅ КЛИК ПО: {action}")
                 if action == "quests":
                     print("📜 Открываем квесты")
                     self.режим = "квесты"
@@ -483,7 +483,7 @@ class Game:
                     self.режим = "игра"
                     return
 
-        print("   ❌ Ни одна кнопка не совпала!")  # 👈 ДОБАВЬТЕ
+        print("   ❌ Ни одна кнопка не совпала!")
 
     def start_craft(self):
         """Начинает крафт в мастерской"""

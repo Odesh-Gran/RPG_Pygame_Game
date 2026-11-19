@@ -702,7 +702,7 @@ def handle_battle_click(game, pos):
             print("   🔥 Обрабатываем результат победы из battle_ended")
             result = game.battle.victory_result
             if isinstance(result, dict) and result.get("victory"):
-                game.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
+                show_loot_panel(game, result["loot"], result["exp"], result["rare_item"])
                 battle_victory(game)
                 game.battle.victory_result = None
                 return
@@ -722,7 +722,7 @@ def handle_battle_click(game, pos):
 
                     if game.battle.battle_ended and game.battle.victory_result:
                         result = game.battle.victory_result
-                        game.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
+                        show_loot_panel(game, result["loot"], result["exp"], result["rare_item"])
                         battle_victory(game)
                         game.battle.victory_result = None
                 return
@@ -759,7 +759,7 @@ def handle_battle_click(game, pos):
                 game.blocking = game.battle.blocking
 
                 if isinstance(result, dict) and result.get("victory"):
-                    game.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
+                    show_loot_panel(game, result["loot"], result["exp"], result["rare_item"])
                     battle_victory(game)
                 return
 
