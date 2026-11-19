@@ -2,6 +2,7 @@
 import sys
 
 # ===== СТОРОННИЕ БИБЛИОТЕКИ =====
+# noinspection PyUnresolvedReferences
 from pyvidplayer2 import Video
 
 # ===== КОНФИГУРАЦИЯ =====

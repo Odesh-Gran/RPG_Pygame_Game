@@ -109,4 +109,18 @@ def craft_item(game, название, рецепт):
 
     game.add_to_log(f"Создан {название} x{количество}")
 
+    # ===== ОБНОВЛЯЕМ ЕЖЕДНЕВНЫЙ КВЕСТ "КУЗНЕЦ ДНЯ" =====
+    if hasattr(game, 'quest_system') and hasattr(game, 'игрок'):
+        завершенные = game.quest_system.обновить_ежедневный_прогресс(
+            game.игрок,
+            "крафт",
+            название
+        )
+        if завершенные:
+            for квест_id in завершенные:
+                for q in game.quest_system.ежедневные_квесты:
+                    if q.get("id") == квест_id:
+                        game.add_to_log(f"📅 Ежедневный квест выполнен: {q['название']}")
+                        break
+
     return True
