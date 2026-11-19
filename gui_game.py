@@ -1122,98 +1122,6 @@ class Game:
         else:
             print(f"✅ Значение брони корректное: {старое}")
 
-    def _draw_trade_sell(self, panel_x, panel_y, panel_width, panel_height):
-        """Отрисовка режима продажи с прокруткой"""
-
-        if not self.игрок["инвентарь"]:
-            empty_text = font_medium.render("Инвентарь пуст", True, GRAY)
-            text_x = panel_x + panel_width // 2 - empty_text.get_width() // 2
-            self.screen.blit(empty_text, (text_x, panel_y + 300))
-            return
-
-        # Группируем предметы
-        подсчёт = {}
-        for предмет in self.игрок["инвентарь"]:
-            подсчёт[предмет] = подсчёт.get(предмет, 0) + 1
-
-        предметы_список = sorted(list(подсчёт.items()), key=lambda x: x[0])
-
-        # Параметры прокрутки
-        if not hasattr(self, 'trade_scroll'):
-            self.trade_scroll = 0
-
-        visible_items = 6
-        item_height = 55
-        start_y = panel_y + 220
-        max_scroll = max(0, len(предметы_список) - visible_items)
-
-        # Отображаем предметы
-        self.trade_items = []
-        start_index = self.trade_scroll
-        end_index = min(start_index + visible_items, len(предметы_список))
-
-        for i in range(start_index, end_index):
-            предмет, количество = предметы_список[i]
-            y = start_y + (i - start_index) * item_height
-
-            # Фон строки
-            row_rect = pygame.Rect(panel_x + 50, y, panel_width - 100, item_height - 2)
-            if row_rect.collidepoint(pygame.mouse.get_pos()):
-                hover_bg = pygame.Surface((row_rect.width, row_rect.height), pygame.SRCALPHA)
-                hover_bg.fill((GOLD[0], GOLD[1], GOLD[2], 30))
-                self.screen.blit(hover_bg, row_rect)
-
-            # Иконка предмета
-            if предмет in self.item_icons:
-                icon = self.item_icons[предмет]
-                icon = pygame.transform.scale(icon, (40, 40))
-                self.screen.blit(icon, (panel_x + 60, y + 5))
-                name_x = panel_x + 110
-            else:
-                name_x = panel_x + 70
-
-            # Название
-            name_text = font_small.render(предмет, True, WHITE)
-            self.screen.blit(name_text, (name_x, y + 15))
-
-            # Количество
-            qty_text = font_small.render(f"x{количество}", True, GOLD)
-            self.screen.blit(qty_text, (panel_x + 400, y + 18))
-
-            # Цена продажи
-            цена_продажи = 1
-            if предмет in предметы.предметы:
-                цена_покупки = предметы.предметы[предмет].get("цена", 2)
-                цена_продажи = max(1, цена_покупки // 2)
-
-            price_text = font_small.render(f"{цена_продажи}", True, GOLD)
-            self.screen.blit(price_text, (panel_x + 560, y + 18))
-
-            # Кнопки продажи
-            btn1_rect = pygame.Rect(panel_x + 700, y + 10, 45, 30)
-            btn_all_rect = pygame.Rect(panel_x + 755, y + 10, 50, 30)
-
-            # Кнопка "1"
-            if btn1_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, btn1_rect)
-                btn1_text = font_small.render("1", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, btn1_rect)
-                pygame.draw.rect(self.screen, GOLD, btn1_rect, 1)
-                btn1_text = font_small.render("1", True, WHITE)
-            self.screen.blit(btn1_text, (btn1_rect.x + 15, btn1_rect.y + 5))
-            self.trade_items.append(("sell_1", предмет, btn1_rect, цена_продажи))
-
-            # Кнопка "ВСЕ"
-            if btn_all_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(self.screen, GOLD, btn_all_rect)
-                btn_all_text = font_small.render("ВСЕ", True, BLACK)
-            else:
-                pygame.draw.rect(self.screen, DARK_RED, btn_all_rect)
-                pygame.draw.rect(self.screen, GOLD, btn_all_rect, 1)
-                btn_all_text = font_small.render("ВСЕ", True, WHITE)
-            self.screen.blit(btn_all_text, (btn_all_rect.x + 10, btn_all_rect.y + 5))
-            self.trade_items.append(("sell_all", предмет, btn_all_rect, цена_продажи, количество))
 
     def add_to_log(self, message):
         """Добавляет сообщение в лог событий"""
@@ -1389,8 +1297,6 @@ class Game:
 
 
 if __name__ == "__main__":
-    from game_api import GameAPI
-
     api = GameAPI()
 
     while True:
