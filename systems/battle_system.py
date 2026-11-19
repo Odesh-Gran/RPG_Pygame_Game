@@ -6,6 +6,7 @@ from entities import items as предметы
 from systems import time_system as время
 from ui.sprites import load_enemy_sprite_by_name
 from ui.battle_intro import start_battle_animation
+from systems.loot_manager import show_loot_panel
 
 
 class BattleSystem:
@@ -739,7 +740,7 @@ def handle_battle_click(game, pos):
 
                 if isinstance(result, dict) and result.get("victory"):
                     print("   🏆 Враг убит!")
-                    game.show_loot_panel(result["loot"], result["exp"], result["rare_item"])
+                    show_loot_panel(game, result["loot"], result["exp"], result["rare_item"])
                     battle_victory(game)
                 return
 

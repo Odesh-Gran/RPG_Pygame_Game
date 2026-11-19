@@ -503,7 +503,7 @@ def handle_inventory_click(game, pos):
                 rect, action, data = item
                 if rect.collidepoint(pos):
                     if action == "belt":
-                        успех = game.add_to_belt(data)
+                        успех = game.inventory.add_to_belt(data)
                         if успех:
                             game.inventory.remove_item(data)
                             game.add_to_log(f"{data} помещён на пояс")

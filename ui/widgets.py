@@ -1,5 +1,6 @@
 import pygame
 from config import WIDTH, HEIGHT, GOLD, WHITE, BLOOD_RED, HEALTH_GREEN, HEALTH_BG, HEALTH_YELLOW, HEALTH_RED
+from config import *
 
 def draw_item_tooltip(game, item_name, x, y):
     """Рисует всплывающую подсказку с информацией о предмете"""
@@ -163,3 +164,20 @@ def разбить_текст_на_строки(text, max_width, font):
         lines.append(current_line)
 
     return lines
+
+def draw_button(game, rect, text, is_primary):
+    """Универсальная отрисовка кнопки"""
+    mouse_pos = pygame.mouse.get_pos()
+    is_hover = rect.collidepoint(mouse_pos)
+
+    if is_hover:
+        pygame.draw.rect(game.screen, GOLD, rect)
+        button_text = game.font_medium.render(text, True, BLACK)
+    else:
+        pygame.draw.rect(game.screen, DARK_RED, rect)
+        pygame.draw.rect(game.screen, GOLD, rect, 2)
+        button_text = game.font_medium.render(text, True, WHITE)
+
+    text_x = rect.x + rect.width // 2 - button_text.get_width() // 2
+    text_y = rect.y + rect.height // 2 - button_text.get_height() // 2
+    game.screen.blit(button_text, (text_x, text_y))

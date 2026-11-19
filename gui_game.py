@@ -27,6 +27,8 @@ from systems.dungeon_controller import DungeonController
 from systems.video_manager import VideoManager
 from systems.audio import MusicManager
 from systems.skills_system import upgrade_skill, learn_skill
+from systems.loot_manager import show_loot_panel, close_loot_panel
+
 
 # ===== ЗАГРУЗЧИКИ И СОХРАНЕНИЯ =====
 from loaders.skill_loader import SkillLoader
@@ -45,6 +47,7 @@ from ui.panels.loot_panel import draw_loot_panel
 from ui.panels.search_bar import draw_search_bar
 from ui.panels.quests_panel import draw_quests
 from ui.quest_tracker import draw_quest_tracker, draw_daily_quest_tracker
+from ui.panels.log_panel import draw_log_panel
 
 # ===== UI: ОСНОВНЫЕ ЭКРАНЫ И БОЙ =====
 from ui.battle_ui import draw_battle
@@ -57,6 +60,7 @@ from ui.save_menus import show_save_menu
 from ui.crafting_ui import draw_craft, handle_craft_click
 from ui.inventory_ui import draw_inventory, handle_inventory_click
 from ui.skills_menu import draw_skills_menu
+from ui.widgets import разбить_текст_на_строки, draw_button
 
 # ===== UI: ВИДЖЕТЫ И СПРАЙТЫ =====
 from ui.widgets import разбить_текст_на_строки
@@ -278,62 +282,6 @@ class Game:
         self.показывать_квесты = True
         self.квесты_позиция_x = WIDTH - 340
         self.квесты_позиция_y = 80
-
-
-    def show_loot_panel(self, items, exp, rare_item=None):
-        """Показывает выезжающую панель с лутом"""
-        self.loot_panel_active = True
-        self.loot_items = items.copy()
-        self.loot_exp = exp
-        self.loot_rare_item = rare_item
-        self.loot_animation_progress = 0  # ← сбрасываем анимацию
-        print(f"📦 Панель лута открыта: {items}, опыт: {exp}")
-
-    def close_loot_panel(self):
-        """Закрывает панель лута и добавляет предметы в инвентарь"""
-        print(f"\n📦 close_loot_panel вызвана!")
-        print(f"   loot_items: {self.loot_items}")
-        print(f"   loot_exp: {self.loot_exp}")
-
-        # Добавляем предметы в инвентарь
-        for item in self.loot_items:
-            self.inventory.add_item(item)
-            self.add_to_log(f"Получен: {item}")
-
-        if self.loot_rare_item:
-            self.inventory.add_item(self.loot_rare_item)
-            self.add_to_log(f"РЕДКИЙ ДРОП: {self.loot_rare_item}!")
-
-        # ВАЖНО: Импортируем глобального игрока и синхронизируем
-        from entities.player import игрок as глобальный_игрок, изменить_уровень
-
-        # Синхронизируем локального игрока с глобальным
-        # (на случай, если они разошлись)
-        глобальный_игрок.update(self.игрок)
-
-        # Добавляем опыт к глобальному игроку
-        глобальный_игрок["опыт"] += self.loot_exp
-        self.add_to_log(f"+{self.loot_exp} опыта")
-
-        print(f"   📊 Текущий опыт ДО: {глобальный_игрок['опыт'] - self.loot_exp}")
-        print(f"   📊 Текущий опыт ПОСЛЕ: {глобальный_игрок['опыт']}")
-        print(f"   📊 Порог уровня: {глобальный_игрок['опыта_до_след_уровня']}")
-
-        # Проверяем повышение уровня
-        изменить_уровень()
-
-        # СИНХРОНИЗИРУЕМ ОБРАТНО: обновляем локального игрока из глобального
-        self.игрок.update(глобальный_игрок)
-
-        print(f"   📊 Уровень после: {self.игрок['уровень']}, опыт: {self.игрок['опыт']}")
-
-        # Закрываем панель
-        self.loot_panel_active = False
-        self.loot_items = []
-        self.loot_exp = 0
-        self.loot_rare_item = None
-        self.loot_animation_progress = 0
-        print(f"   Панель лута закрыта!")
 
     def start_transition(self, new_location):
         """Начинает анимацию перехода к новой локации"""
@@ -598,7 +546,7 @@ class Game:
                     return
 
     def handle_click(self, pos):
-        """Обработка кликов мыши"""
+        """Обработка кликов мыши в режиме 'игра'"""
         if self.режим != "игра":
             return
         if self.обыск_активен:
@@ -607,123 +555,157 @@ class Game:
         локация = локации.локации[self.текущая_локация]
 
         for action, rect in self.buttons:
-            if rect.collidepoint(pos):
-                print(f"Кнопка: {action}")
+            if not rect.collidepoint(pos):
+                continue
 
-                if action == "й":
-                    # Проверяем, можно ли обыскивать эту локацию
-                    if локация.get("хаб", False):
-                        self.add_to_log("В убежище нечего искать...")
+            print(f"Кнопка: {action}")
+
+            # ============================================================
+            # 1. ОБЫСК (кнопка "й")
+            # ============================================================
+            if action == "й":
+                if локация.get("хаб", False):
+                    self.add_to_log("В убежище нечего искать...")
+                    break
+
+                if self.текущая_локация == "Зачарованный лес":
+                    self.add_to_log("В лесу нужно нажать 'Исследовать лес'!")
+                    break
+
+                # Тратим сытость и жажду
+                успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=3, жажда_цена=5)
+                self.add_to_log(сообщение)
+
+                # Проверяем голод/жажду
+                урон, сообщение_голод = проверить_голод(self.игрок)
+                if урон:
+                    self.add_to_log(сообщение_голод)
+                    if self.игрок["здоровье"] <= 0:
+                        self.игрок_умер()
                         break
 
-                    if self.текущая_локация == "Зачарованный лес":
-                        self.add_to_log("В лесу нужно нажать 'Исследовать лес'!")
-                        break
+                # Запускаем шкалу прогресса
+                self.запустить_шкалу_обыска()
+                draw_status(self)
+                pygame.display.flip()
+                return
 
-                        # ===== ТРАТИМ СЫТОСТЬ И ЖАЖДУ (НЕ БЛОКИРУЕМ ОБЫСК) =====
-                    успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=3, жажда_цена=5)
+            # ============================================================
+            # 2. ИНВЕНТАРЬ (кнопка "ц")
+            # ============================================================
+            elif action == "ц":
+                self.inventory_animation_progress = 0
+                self.режим = "инвентарь"
+
+            # ============================================================
+            # 3. СОХРАНЕНИЕ (кнопка "к")
+            # ============================================================
+            elif action == "к":
+                show_save_menu(self)
+
+            # ============================================================
+            # 4. КАРТА (кнопка "у")
+            # ============================================================
+            elif action == "у":
+                self.режим = "карта"
+
+            # ============================================================
+            # 5. ТОРГОВЛЯ (кнопка "т")
+            # ============================================================
+            elif action == "т" and локация.get("торговец", False):
+                self.start_trade()
+
+            # ============================================================
+            # 6. КРАФТ (кнопка "в")
+            # ============================================================
+            elif action == "в" and локация.get("верстак", False):
+                self.start_craft()
+
+            # ============================================================
+            # 7. ОСМОТР ПРУДА (кнопка "в_пруд")
+            # ============================================================
+            elif action == "в_пруд":
+                self.add_to_log("Ты смотришь в тёмную воду...")
+
+            # ============================================================
+            # 8. ВЫХОД (кнопка "с")
+            # ============================================================
+            elif action == "с":
+                if show_exit_dialog(self):
+                    self.игра_активна = False
+                    self.__init__()
+                    return
+
+            # ============================================================
+            # 9. НАВЫКИ (кнопка "о")
+            # ============================================================
+            elif action == "о":
+                self.skills_animation_progress = 0
+                self.режим = "обучение"
+
+            # ============================================================
+            # 10. ВХОД В ЗАЧАРОВАННЫЙ ЛЕС (кнопка "о_лес")
+            # ============================================================
+            elif action == "о_лес":
+                # Тратим сытость и жажду
+                успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=2, жажда_цена=2)
+                if not успех:
                     self.add_to_log(сообщение)
+                    break
+                self.add_to_log(сообщение)
 
-                    # ===== ПРОВЕРЯЕМ ГОЛОД/ЖАЖДУ =====
-                    урон, сообщение_голод = проверить_голод(self.игрок)
-                    if урон:
-                        self.add_to_log(сообщение_голод)
-                        if self.игрок["здоровье"] <= 0:
-                            self.игрок_умер()
-                            break
-
-                    # ===== ЗАПУСКАЕМ ШКАЛУ ПРОГРЕССА =====
-                    self.запустить_шкалу_обыска()
-                    draw_status(self)
-                    pygame.display.flip()
-                    return  # ← ВЫХОДИМ, ЧТОБЫ НЕ ВЫПОЛНЯТЬ ОБЫСК СРАЗУ
-
-                elif action == "ц":
-                    self.inventory_animation_progress = 0
-                    self.режим = "инвентарь"
-
-                elif action == "к":
-                    show_save_menu(self)
-
-                elif action == "у":
-                    self.режим = "карта"
-
-                elif action == "т" and локация.get("торговец", False):
-                    self.start_trade()
-
-                elif action == "в" and локация.get("верстак", False):
-                    self.start_craft()
-
-                elif action == "в_пруд":
-                    self.add_to_log("Ты смотришь в тёмную воду...")
-
-
-                elif action == "с":
-                    if show_exit_dialog(self):
-                        # Возвращаемся в главное меню
-                        self.игра_активна = False
-                        # Перезапускаем игру с главного меню
-                        self.__init__()
-                        return
-
-                elif action == "о":
-                    self.skills_animation_progress = 0
-                    self.режим = "обучение"
-
-                elif action == "о_лес":
-                    # ===== 👇 ПРОВЕРКА СЫТОСТИ И ЖАЖДЫ ДЛЯ ВХОДА В ЛЕС =====
-                    успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=2, жажда_цена=2)
-                    if not успех:
-                        self.add_to_log(сообщение)
+                # Проверяем голод/жажду
+                урон, сообщение_голод = игрок.проверить_голод(self.игрок)
+                if урон:
+                    self.add_to_log(сообщение_голод)
+                    if self.игрок["здоровье"] <= 0:
+                        self.игрок_умер()
                         break
-                    else:
-                        self.add_to_log(сообщение)
 
-                    урон, сообщение_голод = игрок.проверить_голод(self.игрок)
-                    if урон:
-                        self.add_to_log(сообщение_голод)
-                        if self.игрок["здоровье"] <= 0:
-                            self.игрок_умер()
-                            break
-                    # =====================================================
+                print("🌳 Вход в Зачарованный лес!")
+                self.текущая_локация = "Зачарованный лес"
+                self.dungeon.init_forest()
+                self.режим = "эксплорейшн"
+                self.exploration_in_battle = False
 
-                    print("🌳 Вход в Зачарованный лес!")
-                    self.текущая_локация = "Зачарованный лес"
-                    self.dungeon.init_forest()
-                    self.режим = "эксплорейшн"
-                    self.exploration_in_battle = False
+            # ============================================================
+            # 11. ВХОД В ДРЕВНИЙ СКЛЕП (кнопка "о_склеп")
+            # ============================================================
+            elif action == "о_склеп":
+                # Тратим сытость и жажду
+                успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=2, жажда_цена=2)
+                if not успех:
+                    self.add_to_log(сообщение)
+                    break
+                self.add_to_log(сообщение)
 
-                elif action == "о_склеп":
-                    # ===== 👇 ПРОВЕРКА СЫТОСТИ И ЖАЖДЫ ДЛЯ ВХОДА В СКЛЕП =====
-
-                    успех, сообщение = потратить_ресурсы(self.игрок, сытость_цена=2, жажда_цена=2)
-                    if not успех:
-                        self.add_to_log(сообщение)
+                # Проверяем голод/жажду
+                урон, сообщение_голод = игрок.проверить_голод()
+                if урон:
+                    self.add_to_log(сообщение_голод)
+                    if self.игрок["здоровье"] <= 0:
+                        self.игрок_умер()
                         break
-                    else:
-                        self.add_to_log(сообщение)
 
-                    урон, сообщение_голод = игрок.проверить_голод()
-                    if урон:
-                        self.add_to_log(сообщение_голод)
-                        if self.игрок["здоровье"] <= 0:
-                            self.игрок_умер()
-                            break
-                    # =====================================================
+                print("💀 Вход в Древний склеп!")
+                self.текущая_локация = "Древний склеп"
+                self.dungeon.init_crypt()
+                self.режим = "эксплорейшн"
+                self.exploration_in_battle = False
 
-                    print("💀 Вход в Древний склеп!")
-                    self.текущая_локация = "Древний склеп"
-                    self.dungeon.init_crypt()
-                    self.режим = "эксплорейшн"
-                    self.exploration_in_battle = False
+            # ============================================================
+            # 12. ОТДЫХ В ХАБЕ (кнопка "о_хаб")
+            # ============================================================
+            elif action == "о_хаб":
+                self.rest_in_hub()
 
-                elif action == "о_хаб":
-                    self.rest_in_hub()
+            # ============================================================
+            # 13. СУНДУК (кнопка "я")
+            # ============================================================
+            elif action == "я":
+                self.open_chest()
 
-                elif action == "я":
-                    self.open_chest()
-
-                break
+            break
 
     def rest_in_hub(self):
         текущий_день = время.получить_день()
@@ -813,21 +795,24 @@ class Game:
     def run(self):
         """Главный игровой цикл"""
 
-        # ===== ЗАГРУЖАЕМ ЕЖЕДНЕВНЫЕ КВЕСТЫ =====  # 👈 ДОБАВЬТЕ ЭТОТ БЛОК
+        # ===== ЗАГРУЖАЕМ ЕЖЕДНЕВНЫЕ КВЕСТЫ =====
         if hasattr(self, 'quest_system') and hasattr(self, 'игрок'):
             self.quest_system.загрузить_ежедневные_квесты(self.игрок)
 
-        # Для отслеживания смены дня (для системы отдыха)
         предыдущий_день = время.получить_день()
 
         while self.игра_активна:
 
-            # ========== ПРОВЕРКА СМЕРТИ ==========
+            # ============================================================
+            # 1. ПРОВЕРКА СМЕРТИ
+            # ============================================================
             if self.игрок["здоровье"] <= 0:
                 self.игрок_умер()
                 continue
 
-            # ========== ОБРАБОТКА СОБЫТИЙ ==========
+            # ============================================================
+            # 2. ОБРАБОТКА СОБЫТИЙ
+            # ============================================================
             for event in pygame.event.get():
 
                 # --- Выход из игры ---
@@ -844,18 +829,19 @@ class Game:
                     if event.button == 1:
                         mouse_pos = pygame.mouse.get_pos()
 
+                        # Режим "игра"
                         if self.режим == "игра":
                             self.handle_click(mouse_pos)
                             if hasattr(self, 'loot_button') and self.loot_button.collidepoint(mouse_pos):
-                                self.close_loot_panel()
+                                close_loot_panel(self)
 
-
-
+                        # Режим "эксплорейшн" (исследование данжей)
                         elif self.режим == "эксплорейшн":
-                            # Проверяем клик по кнопке "ЗАБРАТЬ" на панели лута
+                            # Кнопка "ЗАБРАТЬ" на панели лута
                             if hasattr(self, 'loot_button') and self.loot_button.collidepoint(mouse_pos):
-                                self.close_loot_panel()
-                            # Проверяем клик по кнопке выхода из леса
+                                close_loot_panel(self)
+
+                            # Кнопка выхода из леса
                             if hasattr(self, 'exploration_exit_button') and self.exploration_exit_button.collidepoint(
                                     mouse_pos):
                                 print("🚪 Выход из леса")
@@ -865,35 +851,35 @@ class Game:
                                 if hasattr(self, 'exploration_zone'):
                                     delattr(self, 'exploration_zone')
 
-                            # Проверяем клики по кнопкам действий
+                            # Кнопки действий (инвентарь, карта, навыки, сохранить, выход)
                             for action, rect in self.buttons:
                                 if rect.collidepoint(mouse_pos):
                                     print(f"🎯 Нажата кнопка в лесу: {action}")
 
-                                    if action == "ц":  # Инвентарь
+                                    if action == "ц":
                                         print("📦 Открываем инвентарь")
                                         self.inventory_animation_progress = 0
                                         self.режим = "инвентарь"
                                         self.previous_mode = "эксплорейшн"
-                                    elif action == "у":  # Карта
+                                    elif action == "у":
                                         print("🗺️ Открываем карту")
                                         self.режим = "карта"
                                         self.previous_mode = "эксплорейшн"
-                                    elif action == "о":  # Навыки
+                                    elif action == "о":
                                         print("📚 Открываем навыки")
                                         self.skills_animation_progress = 0
                                         self.режим = "обучение"
                                         self.previous_mode = "эксплорейшн"
-                                    elif action == "к":  # Сохранить
+                                    elif action == "к":
                                         print("💾 Сохраняем игру")
                                         show_save_menu(self)
-                                    elif action == "с":  # Выход
+                                    elif action == "с":
                                         print("🚪 Выход в главное меню")
                                         if show_exit_dialog(self):
                                             self.игра_активна = False
                                     break
 
-
+                        # Остальные режимы (инвентарь, бой, торговля, карта и т.д.)
                         elif self.режим == "инвентарь":
                             handle_inventory_click(self, mouse_pos)
                         elif self.режим == "бой":
@@ -917,41 +903,45 @@ class Game:
                 elif event.type == pygame.MOUSEWHEEL:
                     self._handle_scroll(event.y)
 
-            # ========== СМЕНА ДНЯ (сброс отдыха) ==========
+            # ============================================================
+            # 3. СМЕНА ДНЯ (сброс отдыха и обновление квестов)
+            # ============================================================
             текущий_день = время.получить_день()
             if текущий_день != предыдущий_день:
                 if hasattr(self, 'last_rest_day'):
                     self.last_rest_day = None
                 self.add_to_log(f"Наступил новый день! (День {текущий_день})")
                 print(f"🌅 Новый день! Отдых снова доступен.")
-
-                # 👇 ДОБАВЬ ЭТО
                 self.quest_system.загрузить_ежедневные_квесты(self.игрок)
                 print("📅 Ежедневные квесты обновлены!")
-
                 предыдущий_день = текущий_день
 
-            # ===== ОБНОВЛЯЕМ ШКАЛУ ОБЫСКА =====
+            # ============================================================
+            # 4. ОБНОВЛЕНИЕ ШКАЛЫ ОБЫСКА
+            # ============================================================
             if self.обыск_активен:
                 self.обыск_таймер += 1
                 self.обыск_прогресс = self.обыск_таймер / self.обыск_длительность
-
                 if self.обыск_прогресс >= 1:
                     self.обыск_активен = False
                     self.обыск_прогресс = 1
                     self.выполнить_обыск()
 
-            # ===== ОБНОВЛЯЕМ АНИМАЦИЮ ПЕРЕХОДА =====
+            # ============================================================
+            # 5. ОБНОВЛЕНИЕ АНИМАЦИЙ
+            # ============================================================
             self.update_transition()
             self.video_manager.update_transition_video(self)
             update_battle_animation(self)
 
-            # ========== ОТРИСОВКА ==========
+            # ============================================================
+            # 6. ОТРИСОВКА (в зависимости от режима)
+            # ============================================================
             if self.режим == "игра":
                 draw_location(self)
                 draw_status(self)
                 draw_actions(self)
-                self.draw_log_panel()
+                draw_log_panel(self)
                 draw_battle_start_animation(self)
                 draw_loot_panel(self)
                 draw_quest_tracker(self)
@@ -971,7 +961,7 @@ class Game:
             elif self.режим == "торговля":
                 draw_trade(self)
 
-            elif self.режим == "quest_trade_menu":  
+            elif self.режим == "quest_trade_menu":
                 draw_quest_trade_menu(self)
 
             elif self.режим == "квесты":
@@ -994,7 +984,9 @@ class Game:
                     print("❌ exploration_zone не существует!")
                     self.режим = "игра"
 
-            # Обновление экрана
+            # ============================================================
+            # 7. ОБНОВЛЕНИЕ ЭКРАНА
+            # ============================================================
             pygame.display.flip()
             self.clock.tick(FPS)
 
@@ -1095,34 +1087,6 @@ class Game:
 
         print("💀 Игрок возродился в Убежище")
 
-    def fix_armor_value(self):
-        """Исправляет неправильное значение брони"""
-        print("\n🔧 ПРОВЕРКА И ИСПРАВЛЕНИЕ БРОНИ")
-
-        старое = self.игрок.get("броня")
-        print(f"📊 Текущее значение брони: {старое} (тип {type(старое)})")
-
-        # Если броня хранится как число - исправляем
-        if isinstance(старое, int):
-            print(f"⚠️ Обнаружено ЧИСЛО {старое} вместо названия брони!")
-
-            # Пытаемся определить, какая броня должна быть
-            if старое == 6:
-                исправленное = "кольчужная броня"
-            elif старое == 3:
-                исправленное = "кожаная броня"
-            else:
-                исправленное = None
-                print(f"❌ Неизвестное значение брони: {старое}, сбрасываем")
-
-            if исправленное:
-                print(f"✅ Исправляем на: {исправленное}")
-                self.игрок["броня"] = исправленное
-                self.add_to_log(f"🔧 Броня исправлена на {исправленное}")
-        else:
-            print(f"✅ Значение брони корректное: {старое}")
-
-
     def add_to_log(self, message):
         """Добавляет сообщение в лог событий"""
         # ===== ПРОВЕРКА: ЕСЛИ log_messages НЕ СУЩЕСТВУЕТ — СОЗДАЁМ =====
@@ -1135,95 +1099,6 @@ class Game:
         if len(self.log_messages) > self.max_log_messages:
             self.log_messages.pop(0)
         print(f" Лог: {message}")
-
-    def add_to_belt(self, item):
-        """Добавляет предмет на пояс (до 5 слотов)"""
-        # Проверяем, что это еда
-        from entities import items as предметы
-        данные = предметы.предметы.get(item, {})
-        if данные.get("тип") != "еда":
-            return False
-
-        if "пояс" not in self.игрок:
-            self.игрок["пояс"] = []
-
-        пояс = self.игрок["пояс"]
-
-        # Проверяем, есть ли пустой слот
-        for i in range(5):
-            if i >= len(пояс):
-                пояс.append(item)
-                return True
-            if пояс[i] is None:
-                пояс[i] = item
-                return True
-
-        return False  # Пояс полона
-
-    def draw_log_panel(self):
-        """Отрисовка панели с логом событий с разбивкой длинного текста"""
-
-        # Параметры панели
-        panel_width = 350
-        panel_height = 200
-        panel_x = 0
-        panel_y = 870
-
-        # Полупрозрачный фон
-        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        panel_surface.fill((26, 26, 46, 180))
-        pygame.draw.rect(panel_surface, GOLD, panel_surface.get_rect(), 2)
-        self.screen.blit(panel_surface, (panel_x, panel_y))
-
-        # Заголовок
-        title_text = font_medium.render("СОБЫТИЯ", True, GOLD)
-        self.screen.blit(title_text, (panel_x + 10, panel_y + 5))
-
-        # Линия разделителя
-        pygame.draw.line(self.screen, GOLD, (panel_x + 10, panel_y + 30),
-                         (panel_x + panel_width - 10, panel_y + 30), 1)
-
-        # Максимальная ширина текста
-        max_text_width = panel_width - 25  # 275 пикселей
-
-        # Сначала разбиваем ВСЕ сообщения на строки
-        все_строки = []
-        for msg in self.log_messages:
-            строки_сообщения = разбить_текст_на_строки(msg, max_text_width, self.font_small)
-            все_строки.append(строки_сообщения)
-
-        # Отображаем строки, начиная с нижней части панели
-        line_height = 18
-        start_y = panel_y + panel_height - line_height - 5  # от нижнего края
-
-        # Идём снизу вверх
-        текущая_y = start_y
-        for строки_сообщения in reversed(все_строки):
-            # Отображаем строки сообщения снизу вверх
-            for строка in reversed(строки_сообщения):
-                if текущая_y < panel_y + 35:  # не выше заголовка
-                    break
-                msg_text = font_small.render(строка, True, WHITE)
-                self.screen.blit(msg_text, (panel_x + 15, текущая_y))
-                текущая_y -= line_height
-            текущая_y -= 2  # небольшой отступ между сообщениями
-
-    def _draw_button(self, rect, text, is_primary):
-        """Универсальная отрисовка кнопки"""
-        mouse_pos = pygame.mouse.get_pos()
-        is_hover = rect.collidepoint(mouse_pos)
-
-        if is_hover:
-            pygame.draw.rect(self.screen, GOLD, rect)
-            button_text = font_medium.render(text, True, BLACK)
-        else:
-            pygame.draw.rect(self.screen, DARK_RED, rect)
-            pygame.draw.rect(self.screen, GOLD, rect, 2)
-            button_text = font_medium.render(text, True, WHITE)
-
-        text_x = rect.x + rect.width // 2 - button_text.get_width() // 2
-        text_y = rect.y + rect.height // 2 - button_text.get_height() // 2
-        self.screen.blit(button_text, (text_x, text_y))
 
     def _пересчитать_пассивные_бонусы(self):
         """

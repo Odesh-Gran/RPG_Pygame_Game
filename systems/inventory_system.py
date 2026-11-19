@@ -147,6 +147,28 @@ class InventorySystem:
         защита = данные.get("защита", 0)
         return True, f"Надета {item} (защита +{защита})"
 
+    def add_to_belt(self, item):
+        """Добавляет предмет на пояс (до 5 слотов). Возвращает True, если успешно."""
+        from entities import items as предметы
+        данные = предметы.предметы.get(item, {})
+        if данные.get("тип") != "еда":
+            return False
+
+        if "пояс" not in self.player:
+            self.player["пояс"] = []
+
+        пояс = self.player["пояс"]
+
+        for i in range(5):
+            if i >= len(пояс):
+                пояс.append(item)
+                return True
+            if пояс[i] is None:
+                пояс[i] = item
+                return True
+
+        return False
+
     def equip_amulet(self, item):
         """Надеть амулет"""
         from entities import items as предметы
@@ -219,3 +241,4 @@ class InventorySystem:
             self.player["здоровье"] = новое_макс
 
         print(f"❤️ Здоровье: {self.player['здоровье']}/{self.player['макс_здоровье']}")
+
